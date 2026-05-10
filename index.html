@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="ro" class="dark scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YO8AIU | Stație Radioamator</title>
+    
+    <!-- Tailwind CSS + Typography -->
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+    </script>
+    
+    <!-- Quill.js (Editor Text) -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    
+    <!-- Modulul de Redimensionare si Aliniere pentru Quill -->
+    <script src="https://cdn.jsdelivr.net/npm/quill-blot-formatter@1.0.5/dist/quill-blot-formatter.min.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Sortable.js (Pentru Drag & Drop) -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    
+    <!-- Firebase Core & Auth & Firestore & Storage -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+
+        window.initializeApp = initializeApp;
+        window.getAuth = getAuth;
+        window.signInAnonymously = signInAnonymously;
+        window.onAuthStateChanged = onAuthStateChanged;
+        window.GoogleAuthProvider = GoogleAuthProvider;
+        window.signInWithPopup = signInWithPopup;
+        window.signOut = signOut;
+        window.getFirestore = getFirestore;
+        window.collection = collection;
+        window.addDoc = addDoc;
+        window.onSnapshot = onSnapshot;
+        window.query = query;
+        window.orderBy = orderBy; 
+        window.serverTimestamp = serverTimestamp;
+        window.doc = doc;
+        window.deleteDoc = deleteDoc;
+        window.updateDoc = updateDoc;
+        
+        window.getStorage = getStorage;
+        window.ref = ref;
+        window.uploadBytesResumable = uploadBytesResumable; 
+        window.getDownloadURL = getDownloadURL;
+    </script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        }
+        
+        .dark .glass-panel {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: none;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+
+        /* Pagini */
+        .page-view { opacity: 0; flex-grow: 1; width: 100%; }
+        .page-view:not(.active) { display: none !important; }
+        .page-view.active { animation: fadeIn 0.5s ease-out forwards; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #hero-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1; opacity: 0.8; pointer-events: none;
+        }
+        .dark #hero-canvas { opacity: 0.4; }
+
+        .nav-link { transition: all 0.3s ease; }
+        .nav-link:hover, .nav-link.active-link { color: #0ea5e9; }
+        .dark .nav-link:hover, .dark .nav-link.active-link { color: #38bdf8; text-shadow: 0 0 8px rgba(56, 189, 248, 0.4); }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .dark ::-webkit-scrollbar-track { background: #0f172a; }
+        .dark ::-webkit-scrollbar-thumb { background: #334155; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        /* Stiluri Quill Editor */
+        .dark .ql-toolbar { background: #1e293b; border-color: #334155; border-radius: 0.5rem 0.5rem 0 0; }
+        .dark .ql-container { border-color: #334155; border-radius: 0 0 0.5rem 0.5rem; color: #e2e8f0; font-size: 1rem; }
+        .dark .ql-picker-label, .dark .ql-picker-item { color: #e2e8f0; }
+        .dark .ql-stroke { stroke: #e2e8f0; }
+        .dark .ql-fill { fill: #e2e8f0; }
+        .dark .ql-picker-options { background-color: #1e293b; border-color: #334155; }
+        
+        .ql-toolbar { border-radius: 0.5rem 0.5rem 0 0; background: #f8fafc; }
+        .ql-container { border-radius: 0 0 0.5rem 0.5rem; background: #ffffff; min-height: 250px; font-family: inherit; font-size: 1rem; }
+        .dark .ql-container { background: #0f172a; }
+        
+        .ql-editor img, .prose img { display: inline-block; max-width: 100%; border-radius: 0.5rem; }
+        .ql-editor iframe, .prose iframe { display: inline-block; max-width: 100%; border-radius: 0.5rem; min-width: 250px; min-height: 150px; }
+        
+        .ql-align-center { text-align: center; }
+        .ql-align-right { text-align: right; }
+        .ql-align-justify { text-align: justify; }
+        .ql-align-center img, .ql-align-center iframe { margin-left: auto; margin-right: auto; display: block; }
+
+        /* Clasa pentru cursor de prindere */
+        .drag-handle { cursor: grab; }
+        .drag-handle:active { cursor: grabbing; }
+
+        main { flex-grow: 1; display: flex; flex-direction: column; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 antialiased">
+
+    <canvas id="hero-canvas"></canvas>
+
+    <!-- Navigation -->
+    <nav class="fixed w-full z-50 glass-panel border-b border-black/5 dark:border-white/10 transition-colors duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <a href="#acasa" class="flex-shrink-0 font-bold text-2xl tracking-wider bg-gradient-to-r from-sky-500 to-emerald-500 dark:from-sky-400 dark:to-emerald-400 bg-clip-text text-transparent">
+                    📻 YO8AIU
+                </a>
+                <div class="hidden lg:block">
+                    <div class="ml-10 flex items-center space-x-4 xl:space-x-6">
+                        <a href="#acasa" class="nav-link text-slate-600 dark:text-gray-300 px-2 py-2 rounded-md text-sm font-medium">Acasă</a>
+                        <a href="#despre" class="nav-link text-slate-600 dark:text-gray-300 px-2 py-2 rounded-md text-sm font-medium">Despre Mine</a>
+                        <a href="#istoric" class="nav-link text-slate-600 dark:text-gray-300 px-2 py-2 rounded-md text-sm font-medium">Istoric</a>
+                        <a href="#proiecte" class="nav-link text-slate-600 dark:text-gray-300 px-2 py-2 rounded-md text-sm font-medium">Proiecte</a>
+                        <a href="#meshtastic" class="nav-link text-slate-600 dark:text-gray-300 px-2 py-2 rounded-md text-sm font-medium">Meshtastic</a>
+                        <a href="#galerie" class="nav-link text-slate-600 dark:text-gray-300 px-2 py-2 rounded-md text-sm font-medium">Galerie</a>
+                        <a href="#contact" class="nav-link text-slate-600 dark:text-gray-300 px-2 py-2 rounded-md text-sm font-medium">Contact</a>
+                        <div class="border-l border-slate-300 dark:border-slate-700 h-6 mx-2"></div>
+                        <button id="themeToggleBtn" class="text-slate-500 hover:text-amber-500 dark:text-gray-400 dark:hover:text-amber-400 px-2 py-2 text-xl transition-colors" title="Schimbă tema">🌓</button>
+                        <button id="adminLoginBtn" class="text-slate-500 hover:text-sky-500 dark:text-gray-400 dark:hover:text-sky-400 px-2 py-2 text-lg transition-colors" title="Logare Admin">🔒</button>
+                    </div>
+                </div>
+                <div class="lg:hidden flex items-center gap-4">
+                    <button id="themeToggleBtnMobile" class="text-slate-500 dark:text-gray-400 text-xl">🌓</button>
+                    <button id="mobileMenuBtn" class="text-slate-600 dark:text-gray-300 hover:text-sky-500 focus:outline-none text-2xl">≡</button>
+                </div>
+            </div>
+        </div>
+        <div id="mobileMenu" class="hidden lg:hidden glass-panel border-t border-black/5 dark:border-white/10">
+            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                <a href="#acasa" class="block nav-link text-slate-600 dark:text-gray-300 px-3 py-2 rounded-md text-base font-medium">Acasă</a>
+                <a href="#despre" class="block nav-link text-slate-600 dark:text-gray-300 px-3 py-2 rounded-md text-base font-medium">Despre Mine</a>
+                <a href="#istoric" class="block nav-link text-slate-600 dark:text-gray-300 px-3 py-2 rounded-md text-base font-medium">Istoric</a>
+                <a href="#proiecte" class="block nav-link text-slate-600 dark:text-gray-300 px-3 py-2 rounded-md text-base font-medium">Proiecte</a>
+                <a href="#meshtastic" class="block nav-link text-slate-600 dark:text-gray-300 px-3 py-2 rounded-md text-base font-medium">Meshtastic</a>
+                <a href="#galerie" class="block nav-link text-slate-600 dark:text-gray-300 px-3 py-2 rounded-md text-base font-medium">Galerie</a>
+                <a href="#contact" class="block nav-link text-slate-600 dark:text-gray-300 px-3 py-2 rounded-md text-base font-medium">Contact</a>
+                <button id="mobileAdminBtn" class="block w-full text-left text-sky-600 dark:text-sky-400 px-3 py-2 rounded-md text-base font-medium transition-colors">🔒 Logare Admin</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Modal Admin Login -->
+    <div id="adminModal" class="fixed inset-0 z-[60] hidden bg-slate-900/40 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 transition-colors duration-300">
+        <div class="glass-panel p-8 rounded-2xl max-w-sm w-full relative border border-slate-200 dark:border-slate-700">
+            <button id="closeModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 dark:hover:text-white text-xl">✕</button>
+            <h3 class="text-2xl font-bold mb-4 text-sky-500 dark:text-sky-400">Autentificare</h3>
+            <p class="text-sm text-slate-500 dark:text-gray-300 mb-6">Folosiți contul de Google autorizat pentru a gestiona conținutul site-ului.</p>
+
+            <button id="googleLoginBtn" class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white font-bold py-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center justify-center gap-3 shadow-sm">
+                <svg class="w-5 h-5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                Conectare cu Google
+            </button>
+        </div>
+    </div>
+
+    <!-- PANOUL DE ADMIN -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 w-full">
+        <div id="adminPanel" class="hidden glass-panel p-6 rounded-2xl mb-8 border border-sky-500/30 shadow-md dark:shadow-[0_0_20px_rgba(56,189,248,0.1)] mt-4">
+            <h3 id="formTitle" class="text-xl font-bold text-sky-600 dark:text-sky-400 mb-2 flex items-center gap-2"><span>✏️</span> Creează o Postare Nouă</h3>
+            <p class="text-sm text-slate-500 dark:text-gray-400 mb-6">Completați detaliile. Acum puteți adăuga imagini și videoclipuri **nelimitate** folosind butoanele din editorul de mai jos!</p>
+            
+            <form id="addPostForm" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                    <!-- Dropdown -->
+                    <select id="postCollection" class="w-full bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-600 rounded-lg p-3 text-slate-900 dark:text-white focus:outline-none focus:border-sky-500 shadow-sm transition-colors cursor-pointer font-semibold h-12">
+                        <option value="posts">📁 Adaugă în Galerie Jurnal</option>
+                        <option value="projects">🛠️ Adaugă în Proiecte</option>
+                        <option value="meshtastic">📡 Adaugă în Meshtastic</option>
+                        <option value="history">⏳ Adaugă în Istoric (Timeline)</option>
+                    </select>
+
+                    <input type="text" id="postTitle" required class="w-full bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-600 rounded-lg p-3 text-slate-900 dark:text-white focus:outline-none focus:border-sky-500 shadow-sm transition-colors h-12" placeholder="Titlul postării...">
+                    
+                    <!-- CAMP COPERTA -->
+                    <div id="thumbnailWrapper" class="w-full flex flex-col gap-2">
+                        <input type="text" id="postThumbnailUrl" class="w-full bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-600 rounded-lg p-3 text-slate-900 dark:text-white focus:outline-none focus:border-sky-500 shadow-sm transition-colors h-12" placeholder="URL Copertă (SAU alegeți fișier mai jos)...">
+                        
+                        <div class="relative bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-600 rounded-lg p-1.5 shadow-sm overflow-hidden">
+                            <input type="file" id="postThumbnailFile" accept="image/*,video/mp4,video/webm" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-sky-100 file:text-sky-700 hover:file:bg-sky-200 dark:file:bg-slate-700 dark:file:text-sky-300 dark:hover:file:bg-slate-600 transition-colors cursor-pointer">
+                        </div>
+                    </div>
+                    
+                    <!-- Camp special Meshtastic -->
+                    <input type="text" id="meshtasticCamUrl" class="hidden w-full bg-white dark:bg-slate-900/80 border border-red-300 dark:border-red-600/50 rounded-lg p-3 text-slate-900 dark:text-white focus:outline-none focus:border-red-500 shadow-sm transition-colors h-12" placeholder="Link web stream Cameră (HTTP, iframe, Youtube)...">
+
+                    <!-- Camp special Istoric -->
+                    <input type="text" id="historyDateInput" class="hidden w-full md:col-span-3 bg-slate-50 dark:bg-slate-800/80 border border-emerald-300 dark:border-emerald-600/50 rounded-lg p-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 shadow-sm transition-colors h-12" placeholder="Data sau perioada (ex: Anul 2010, Începuturi, 15 Mai 2023)...">
+                </div>
+                
+                <div class="mb-4 text-slate-900 dark:text-white relative">
+                    <!-- EDITOR TEXT -->
+                    <div id="editor-container"></div>
+                </div>
+
+                <div class="flex flex-col md:flex-row gap-4 mt-4">
+                    <button type="submit" id="submitBtn" class="flex-1 md:flex-none bg-gradient-to-r from-sky-500 to-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:shadow-lg dark:hover:shadow-[0_0_15px_rgba(56,189,248,0.5)] transition-all">Publică Postarea</button>
+                    <button type="button" id="cancelEditBtn" class="hidden flex-1 md:flex-none bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-white font-bold py-3 px-8 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-all">Anulează Editarea</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <main>
+        <!-- Pagina 1: Acasa -->
+        <div id="acasa" class="page-view flex flex-col items-center justify-center pt-10 pb-10">
+            <div class="text-center z-10 px-4 max-w-4xl">
+                <div class="text-6xl md:text-8xl mb-6 drop-shadow-md dark:drop-shadow-lg">📡</div>
+                <h1 class="text-5xl md:text-7xl font-extrabold tracking-tight mb-4">
+                    <span class="bg-gradient-to-r from-sky-500 via-blue-600 to-emerald-500 dark:from-sky-400 dark:via-blue-500 dark:to-emerald-400 bg-clip-text text-transparent">YO8AIU</span>
+                </h1>
+                <p class="text-xl md:text-2xl text-slate-600 dark:text-gray-300 mb-8 font-light">Explorând undele radio. Conectând lumea din România.</p>
+                <a href="#despre" class="inline-block glass-panel hover:bg-slate-100 dark:hover:bg-white/10 text-slate-800 dark:text-white font-semibold py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-105 shadow-md dark:shadow-[0_0_15px_rgba(56,189,248,0.3)] border border-slate-200 dark:border-white/20">
+                    Intră în Lumea Mea
+                </a>
+            </div>
+        </div>
+
+        <!-- Pagina 2: Despre Mine -->
+        <div id="despre" class="page-view block pt-10 pb-20">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-4 text-slate-900 dark:text-white">Despre Mine</h2>
+                    <div class="w-24 h-1 bg-sky-500 mx-auto rounded-full"></div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                    <div class="glass-panel p-8 rounded-2xl shadow-xl border border-slate-200 dark:border-white/10">
+                        <p class="text-lg text-slate-700 dark:text-gray-300 mb-6 leading-relaxed">
+                            Salut! Sunt operatorul stației de radioamator <strong>YO8AIU</strong>. Pasiunea mea pentru radiocomunicații a început cu mulți ani în urmă, fiind fascinat de capacitatea de a comunica dincolo de granițe folosind doar echipamente construite și configurate cu atenție.
+                        </p>
+                        <p class="text-lg text-slate-700 dark:text-gray-300 mb-6 leading-relaxed">
+                            Sunt activ preponderent în benzile de unde scurte (HF), atât în moduri analogice (SSB, CW) cât și digitale (FT8, DMR). Particip la competiții și experimentez constant cu construcția de antene noi.
+                        </p>
+                        <div class="grid grid-cols-2 gap-4 mt-8">
+                            <div class="bg-white dark:bg-slate-800/80 p-4 rounded-lg text-center border border-slate-200 dark:border-slate-700/50 hover:border-sky-500/50 transition-colors shadow-sm">
+                                <div class="text-3xl mb-2 text-sky-500 dark:text-sky-400">🌍</div>
+                                <div class="font-bold text-slate-900 dark:text-white">DXCC</div>
+                                <div class="text-sm text-slate-500 dark:text-gray-400">Peste 100 entități</div>
+                            </div>
+                            <div class="bg-white dark:bg-slate-800/80 p-4 rounded-lg text-center border border-slate-200 dark:border-slate-700/50 hover:border-emerald-500/50 transition-colors shadow-sm">
+                                <div class="text-3xl mb-2 text-emerald-500 dark:text-emerald-400">⚡</div>
+                                <div class="font-bold text-slate-900 dark:text-white">Moduri</div>
+                                <div class="text-sm text-slate-500 dark:text-gray-400">SSB, CW, DIGI</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-xl font-semibold mb-6 text-center text-slate-700 dark:text-sky-200">Distribuția Contactelor pe Continente (Estimativ)</h3>
+                        <div class="chart-container glass-panel p-4 rounded-2xl shadow-xl border border-slate-200 dark:border-white/10">
+                            <canvas id="contactsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagina 3: Istoric -->
+        <div id="istoric" class="page-view block pt-10 pb-20">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-4 text-slate-900 dark:text-white">Scurtă Istorie</h2>
+                    <div class="w-24 h-1 bg-emerald-500 mx-auto rounded-full"></div>
+                    <p class="mt-4 text-slate-500 dark:text-gray-400">Evoluția mea, aparatura și reperele în radioamatorism.</p>
+                </div>
+
+                <div id="loadingHistory" class="text-center py-10 text-emerald-600 dark:text-emerald-400 font-semibold animate-pulse">
+                    Se încarcă istoricul... ⏳
+                </div>
+
+                <div id="historyTimeline" class="relative border-l-2 border-slate-300 dark:border-slate-600/50 ml-4 md:ml-8">
+                    <!-- Continutul va fi generat de Javascript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagina NOUA: Proiecte -->
+        <div id="proiecte" class="page-view block pt-10 pb-20">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-4 text-slate-900 dark:text-white flex items-center justify-center gap-3">
+                        🛠️ Proiecte și Construcții
+                    </h2>
+                    <div class="w-24 h-1 bg-amber-500 mx-auto rounded-full"></div>
+                    <p class="mt-4 text-slate-500 dark:text-gray-400">Echipamente, antene și modding tehnic.</p>
+                </div>
+
+                <div id="loadingProjects" class="text-center py-10 text-amber-600 text-amber-400 font-semibold animate-pulse">
+                    Se încarcă proiectele... ⏳
+                </div>
+
+                <!-- Grila Proiecte -->
+                <div id="projectsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagina NOUA: Meshtastic -->
+        <div id="meshtastic" class="page-view block pt-10 pb-20">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-4 text-slate-900 dark:text-white flex items-center justify-center gap-3">
+                        📡 Rețeaua Meshtastic
+                    </h2>
+                    <div class="w-24 h-1 bg-red-500 mx-auto rounded-full"></div>
+                    <p class="mt-4 text-slate-500 dark:text-gray-400">Noduri IoT off-grid și transmisii live.</p>
+                </div>
+
+                <div id="loadingMeshtastic" class="text-center py-10 text-red-600 dark:text-red-400 font-semibold animate-pulse">
+                    Se încarcă datele rețelei... ⏳
+                </div>
+
+                <!-- Grila Meshtastic -->
+                <div id="meshtasticGrid" class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagina 4: Galerie -->
+        <div id="galerie" class="page-view block pt-10 pb-20">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-4 text-slate-900 dark:text-white flex items-center justify-center gap-3">
+                        Galerie Jurnal
+                    </h2>
+                    <div class="w-24 h-1 bg-blue-500 mx-auto rounded-full"></div>
+                    <p class="mt-4 text-slate-500 dark:text-gray-400">QSO-uri remarcabile, activări și experimente tehnice.</p>
+                </div>
+
+                <div id="loadingGallery" class="text-center py-10 text-sky-600 dark:text-sky-400 font-semibold animate-pulse">
+                    Se încarcă log-urile... ⏳
+                </div>
+
+                <!-- Grila Galerie -->
+                <div id="galleryGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagina DETALII COMUNA PENTRU POSTARI -->
+        <div id="postare-detaliu" class="page-view block pt-10 pb-20">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                <a href="#acasa" onclick="window.history.back(); return false;" class="inline-flex items-center gap-2 text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300 font-medium mb-8 transition-colors">
+                    <span>←</span> Înapoi
+                </a>
+                <div id="postareDetaliuContinut" class="glass-panel p-6 md:p-12 rounded-3xl shadow-xl border border-slate-200 dark:border-white/10 relative bg-white/90 dark:bg-[#0f172a]/90">
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagina 5: Contact -->
+        <div id="contact" class="page-view block pt-10 pb-20">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-4 text-slate-900 dark:text-white">Contact</h2>
+                    <div class="w-24 h-1 bg-amber-500 mx-auto rounded-full"></div>
+                    <p class="mt-4 text-slate-500 dark:text-gray-400">Pentru confirmări QSL sau alte discuții.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+                    <div class="glass-panel p-8 rounded-2xl h-full flex flex-col justify-center space-y-8 shadow-xl border border-slate-200 dark:border-white/10">
+                        <div class="flex items-center gap-5 text-slate-700 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white transition-colors group">
+                            <div class="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-amber-500 dark:text-amber-400 group-hover:scale-110 transition-transform shadow-sm">✉️</div>
+                            <div>
+                                <h4 class="font-bold text-lg">Email</h4>
+                                <p class="text-sm text-slate-500 dark:text-gray-400">contact@yo8aiu.ro</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-5 text-slate-700 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white transition-colors group">
+                            <div class="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-sky-500 dark:text-sky-400 group-hover:scale-110 transition-transform shadow-sm">🌐</div>
+                            <div>
+                                <h4 class="font-bold text-lg">QRZ.com</h4>
+                                <p class="text-sm text-slate-500 dark:text-gray-400">YO8AIU</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-5 text-slate-700 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white transition-colors group">
+                            <div class="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-emerald-500 dark:text-emerald-400 group-hover:scale-110 transition-transform shadow-sm">📍</div>
+                            <div>
+                                <h4 class="font-bold text-lg">QTH</h4>
+                                <p class="text-sm text-slate-500 dark:text-gray-400">România</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-8 rounded-2xl shadow-xl border-t border-amber-500/30">
+                        <form id="contactForm" class="space-y-5">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-1">Nume / Indicativ</label>
+                                <input type="text" required class="w-full bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 transition-colors shadow-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-1">Mesaj</label>
+                                <textarea required rows="4" class="w-full bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 transition-colors shadow-sm"></textarea>
+                            </div>
+                            <button type="button" onclick="alert('Funcționalitate demonstrativă. Trimis cu succes!')" class="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white dark:text-slate-900 font-bold py-3 rounded-lg hover:shadow-[0_0_15px_rgba(245,158,11,0.4)] transition-all">
+                                Trimite Mesaj
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-white dark:bg-slate-950 py-6 text-center border-t border-slate-200 dark:border-white/5 mt-auto relative z-10 transition-colors duration-300">
+        <p class="text-slate-500 dark:text-slate-500 text-sm">
+            © <span id="currentYear"></span> Stația Radioamator YO8AIU. Toate drepturile rezervate. <br>
+            <span class="text-sky-600 dark:text-sky-500/50">73!</span>
+        </p>
+    </footer>
+
+    <script>
+        // --- 0. DARK/LIGHT MODE ---
+        const themeToggleBtns = [document.getElementById('themeToggleBtn'), document.getElementById('themeToggleBtnMobile')];
+        if (localStorage.theme === 'light' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: light)').matches)) {
+            document.documentElement.classList.remove('dark');
+        } else { document.documentElement.classList.add('dark'); }
+
+        themeToggleBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark');
+                localStorage.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+                if(chartInstance) initChart(); 
+            });
+        });
+
+        // Baze de date incarcate in memorie
+        let globalPostsData = [];
+        let globalHistoryData = [];
+        let globalProjectsData = [];
+        let globalMeshtasticData = [];
+        
+        let quillEditor = null;
+        let editingPostId = null;
+        let editingCollection = 'posts';
+        
+        let sortableGallery = null;
+        let sortableHistory = null;
+        let sortableProjects = null;
+        let sortableMeshtastic = null;
+
+        // --- 1. ROUTER JAVASCRIPT ---
+        const views = document.querySelectorAll('.page-view');
+        const navLinks = document.querySelectorAll('.nav-link');
+        const mobileMenu = document.getElementById('mobileMenu');
+        let chartInstance = null; 
+
+        function navigate() {
+            let hash = window.location.hash || '#acasa';
+            
+            views.forEach(view => view.classList.remove('active'));
+            navLinks.forEach(link => link.classList.remove('active-link'));
+            
+            if (hash.startsWith('#postare-')) {
+                const postId = hash.split('-')[1];
+                renderPostDetail(postId);
+                document.getElementById('postare-detaliu').classList.add('active');
+            } else {
+                const targetId = hash.substring(1);
+                const targetPage = document.getElementById(targetId);
+                if (targetPage) { targetPage.classList.add('active'); } 
+                else { document.getElementById('acasa').classList.add('active'); hash = '#acasa'; }
+                document.querySelectorAll(`a[href="${hash}"]`).forEach(link => { link.classList.add('active-link'); });
+            }
+
+            mobileMenu.classList.add('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            if (hash === '#despre' && !chartInstance) initChart();
+        }
+
+        window.addEventListener('hashchange', navigate);
+        window.addEventListener('DOMContentLoaded', navigate);
+
+        // --- 2. LOGICA UI PANOU ADMIN ---
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+        document.getElementById('mobileMenuBtn').addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
+
+        document.getElementById('postCollection').addEventListener('change', function(e) {
+            const historyDateInput = document.getElementById('historyDateInput');
+            const meshtasticCamUrl = document.getElementById('meshtasticCamUrl');
+            const thumbnailWrapper = document.getElementById('thumbnailWrapper');
+            
+            historyDateInput.classList.add('hidden');
+            historyDateInput.required = false;
+            meshtasticCamUrl.classList.add('hidden');
+            
+            if(e.target.value === 'history') {
+                historyDateInput.classList.remove('hidden');
+                historyDateInput.required = true;
+                thumbnailWrapper.classList.add('hidden');
+            } else if (e.target.value === 'meshtastic') {
+                meshtasticCamUrl.classList.remove('hidden');
+                thumbnailWrapper.classList.remove('hidden');
+            } else {
+                thumbnailWrapper.classList.remove('hidden');
+            }
+        });
+
+        // --- 3. ANIMAȚIE BACKGROUND ---
+        const canvas = document.getElementById('hero-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height, waves = [];
+        function resizeCanvas() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resizeCanvas); resizeCanvas();
+
+        class Wave {
+            constructor() { this.reset(); }
+            reset() {
+                this.x = width / 2; this.y = height / 2; this.radius = Math.random() * 50;
+                this.speed = 0.3 + Math.random() * 1; this.opacity = 1; this.maxRadius = Math.max(width, height) * 1.2;
+            }
+            update() {
+                this.radius += this.speed; this.opacity = 1 - (this.radius / this.maxRadius);
+                if (this.opacity <= 0) this.reset();
+            }
+            draw() {
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                const isDark = document.documentElement.classList.contains('dark');
+                ctx.strokeStyle = isDark ? `rgba(56, 189, 248, ${this.opacity * 0.15})` : `rgba(14, 165, 233, ${this.opacity * 0.10})`;
+                ctx.lineWidth = 1.5; ctx.stroke();
+            }
+        }
+        for (let i = 0; i < 6; i++) setTimeout(() => waves.push(new Wave()), i * 1500);
+        function animateCanvas() {
+            ctx.clearRect(0, 0, width, height); waves.forEach(w => { w.update(); w.draw(); }); requestAnimationFrame(animateCanvas);
+        }
+        animateCanvas();
+
+        function initChart() {
+            const ctxChart = document.getElementById('contactsChart').getContext('2d');
+            const isDark = document.documentElement.classList.contains('dark');
+            if(chartInstance) chartInstance.destroy(); 
+            chartInstance = new Chart(ctxChart, {
+                type: 'bar',
+                data: {
+                    labels: ['Europa', 'Asia', 'Am. Nord', 'Am. Sud', 'Africa', 'Oceania'],
+                    labels: ['Europa', 'Asia', 'Am. Nord', 'Am. Sud', 'Africa', 'Oceania'],
+                    datasets: [{
+                        label: 'Contacte (%)', data: [65, 15, 10, 5, 3, 2],
+                        backgroundColor: 'rgba(56, 189, 248, 0.7)', borderColor: 'rgba(56, 189, 248, 1)', borderWidth: 1, borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }, ticks: { color: isDark ? '#94a3b8' : '#475569' } },
+                        x: { grid: { display: false }, ticks: { color: isDark ? '#94a3b8' : '#475569' } }
+                    }
+                }
+            });
+        }
+
+        // =========================================================================
+        // 🔒 SISTEM ADMIN
+        // =========================================================================
+        const emailuriPermise = [
+            'marius@yo8aiu.ro', 
+            'cuibarimarius6@gmail.com',
+            'stef.popina.andrei@gmail.com'
+        ];
+
+        let db, auth, storage;
+        let isAdmin = false;
+
+        const adminModal = document.getElementById('adminModal');
+        const adminLoginBtnDesktop = document.getElementById('adminLoginBtn');
+        const adminLoginBtnMobile = document.getElementById('mobileAdminBtn');
+        const googleLoginBtn = document.getElementById('googleLoginBtn');
+
+        // FUNCTIE MAGICA 1: Urca poze alese in editor direct pe server
+        function selectLocalMediaForEditor(type) {
+            if(!storage) return alert("Sistemul de fișiere nu e gata. Așteptați câteva secunde.");
+            
+            const input = document.createElement('input');
+            input.setAttribute('type', 'file');
+            // Daca e imagine, acceptam poze. Daca e video, acceptam mp4/webm
+            input.setAttribute('accept', type === 'image' ? 'image/*' : 'video/mp4,video/webm');
+            input.click();
+
+            input.onchange = async () => {
+                const file = input.files[0];
+                if (!file) return;
+
+                const btn = document.getElementById('submitBtn');
+                const originalText = btn.textContent;
+                btn.disabled = true;
+                
+                try {
+                    // Punem pozele din editor intr-un folder separat
+                    const storageRef = window.ref(storage, 'continut_postari/' + Date.now() + '_' + file.name);
+                    const uploadTask = window.uploadBytesResumable(storageRef, file);
+
+                    uploadTask.on('state_changed', 
+                        (snapshot) => {
+                            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                            btn.textContent = `Se încarcă media în text... ${Math.round(progress)}% ⏳`;
+                        }, 
+                        (error) => {
+                            alert("Eroare la încărcare în editor: " + error.message);
+                            btn.disabled = false;
+                            btn.textContent = originalText;
+                        }, 
+                        async () => {
+                            // S-a terminat incarcarea. Luam linkul!
+                            const downloadURL = await window.getDownloadURL(uploadTask.snapshot.ref);
+                            
+                            // Gasim unde era cursorul in text
+                            const range = quillEditor.getSelection(true);
+                            
+                            // Inseram poza/video EXACT in text la pozitia aia
+                            quillEditor.insertEmbed(range.index, type, downloadURL);
+                            
+                            // Mutam cursorul cu un spatiu mai incolo sa poata scrie mai departe
+                            quillEditor.setSelection(range.index + 1);
+                            
+                            btn.disabled = false;
+                            btn.textContent = originalText;
+                        }
+                    );
+                } catch(err) {
+                    alert('Eroare: ' + err.message);
+                    btn.disabled = false;
+                    btn.textContent = originalText;
+                }
+            };
+        }
+
+        // FUNCTIE MAGICA 2: Smecherie pt butonul video (Sa aleaga: YouTube sau PC)
+        function handleVideoClick() {
+            const url = prompt('Dacă aveți un link de YouTube/Vimeo, dați Paste aici.\n\nSAU lăsați căsuța complet GOALĂ și apăsați OK pentru a alege un video din calculator:');
+            
+            if (url) {
+                // A dat un link de net. Il facem bun pt embed.
+                let finalUrl = url;
+                const ytMatch = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);
+                if (ytMatch && ytMatch[2].length === 11) {
+                    finalUrl = 'https://www.youtube.com/embed/' + ytMatch[2];
+                }
+                const range = quillEditor.getSelection(true);
+                quillEditor.insertEmbed(range.index, 'video', finalUrl);
+                quillEditor.setSelection(range.index + 1);
+            } else if (url === "") {
+                // A lasat gol. Deschidem folderul din PC!
+                selectLocalMediaForEditor('video');
+            }
+        }
+
+        function initQuill() {
+            if(!quillEditor) {
+                const BlotFormatter = QuillBlotFormatter.default || QuillBlotFormatter;
+                Quill.register('modules/blotFormatter', BlotFormatter);
+
+                quillEditor = new Quill('#editor-container', {
+                    theme: 'snow',
+                    placeholder: 'Scrieți textul, adăugați imagini, video-uri (YouTube sau din PC)...',
+                    modules: {
+                        blotFormatter: {},
+                        toolbar: {
+                            container: [
+                                [{ 'header': [2, 3, false] }],
+                                ['bold', 'italic', 'underline', 'strike'],
+                                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                                [{ 'align': [] }],
+                                ['link', 'image', 'video'],
+                                ['clean']
+                            ],
+                            // AICI AM SCHIMBAT COMPORTAMENTUL BUTOANELOR STANDARD
+                            handlers: {
+                                image: () => selectLocalMediaForEditor('image'),
+                                video: handleVideoClick
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        function resetFormToCreate() {
+            editingPostId = null;
+            document.getElementById('postTitle').value = '';
+            document.getElementById('postThumbnailUrl').value = '';
+            document.getElementById('postThumbnailFile').value = ''; 
+            document.getElementById('historyDateInput').value = '';
+            document.getElementById('meshtasticCamUrl').value = '';
+            if(quillEditor) quillEditor.root.innerHTML = '';
+            
+            document.getElementById('formTitle').innerHTML = '<span>✏️</span> Creează o Postare Nouă';
+            document.getElementById('submitBtn').textContent = 'Publică Postarea';
+            document.getElementById('cancelEditBtn').classList.add('hidden');
+        }
+
+        window.editeazaPostare = function(id, collectionType, event) {
+            if(event) { event.preventDefault(); event.stopPropagation(); }
+            if(!isAdmin) return;
+
+            let postToEdit;
+            const targetList = collectionType === 'posts' ? globalPostsData 
+                            : collectionType === 'projects' ? globalProjectsData 
+                            : collectionType === 'meshtastic' ? globalMeshtasticData 
+                            : globalHistoryData;
+            postToEdit = targetList.find(p => String(p.id) === String(id));
+            if(!postToEdit) return;
+
+            document.getElementById('postCollection').value = collectionType;
+            document.getElementById('postCollection').dispatchEvent(new Event('change'));
+
+            if(collectionType === 'history') {
+                document.getElementById('historyDateInput').value = postToEdit.data.historyDate || ''; 
+            } else if (collectionType === 'meshtastic') {
+                document.getElementById('postThumbnailUrl').value = postToEdit.data.thumbnailUrl || ''; 
+                document.getElementById('postThumbnailFile').value = '';
+                document.getElementById('meshtasticCamUrl').value = postToEdit.data.camUrl || '';
+            } else {
+                document.getElementById('postThumbnailUrl').value = postToEdit.data.thumbnailUrl || ''; 
+                document.getElementById('postThumbnailFile').value = '';
+            }
+
+            editingCollection = collectionType;
+            editingPostId = id;
+            initQuill();
+
+            document.getElementById('postTitle').value = postToEdit.data.title;
+            quillEditor.root.innerHTML = postToEdit.data.content;
+
+            document.getElementById('formTitle').innerHTML = '<span class="text-amber-500">✍️</span> Editează Postarea';
+            document.getElementById('submitBtn').textContent = 'Salvează Modificările';
+            document.getElementById('cancelEditBtn').classList.remove('hidden');
+
+            document.getElementById('adminPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+
+        document.getElementById('cancelEditBtn').addEventListener('click', resetFormToCreate);
+
+        function handleAdminMenuClick() {
+            if (isAdmin) {
+                if(confirm("Ești sigur că vrei să te deloghezi din modul Administrator?")) {
+                    isAdmin = false;
+                    resetFormToCreate();
+                    
+                    adminLoginBtnDesktop.textContent = '🔒';
+                    adminLoginBtnDesktop.classList.remove('text-red-500', 'dark:text-red-400');
+                    adminLoginBtnMobile.textContent = '🔒 Logare Admin';
+                    adminLoginBtnMobile.classList.remove('text-red-500', 'dark:text-red-400');
+                    adminLoginBtnMobile.classList.add('text-sky-600', 'dark:text-sky-400');
+                    document.getElementById('adminPanel').classList.add('hidden');
+                    
+                    if(sortableGallery) sortableGallery.destroy();
+                    if(sortableHistory) sortableHistory.destroy();
+                    if(sortableProjects) sortableProjects.destroy();
+                    if(sortableMeshtastic) sortableMeshtastic.destroy();
+
+                    renderGridCollection(globalPostsData, 'posts', 'galleryGrid', 'loadingGallery');
+                    renderGridCollection(globalProjectsData, 'projects', 'projectsGrid', 'loadingProjects');
+                    renderGridCollection(globalMeshtasticData, 'meshtastic', 'meshtasticGrid', 'loadingMeshtastic');
+                    renderHistory(globalHistoryData);
+                }
+            } else {
+                adminModal.classList.remove('hidden');
+            }
+        }
+
+        adminLoginBtnDesktop.addEventListener('click', handleAdminMenuClick);
+        adminLoginBtnMobile.addEventListener('click', () => { handleAdminMenuClick(); mobileMenu.classList.add('hidden'); });
+        document.getElementById('closeModalBtn').addEventListener('click', () => adminModal.classList.add('hidden'));
+
+        function loginSuccess() {
+            isAdmin = true;
+            adminModal.classList.add('hidden');
+            document.getElementById('adminPanel').classList.remove('hidden');
+            
+            adminLoginBtnDesktop.textContent = '🚪';
+            adminLoginBtnDesktop.classList.add('text-red-500', 'dark:text-red-400');
+            adminLoginBtnMobile.textContent = '🚪 Delogare Admin';
+            adminLoginBtnMobile.classList.remove('text-sky-600', 'dark:text-sky-400');
+            adminLoginBtnMobile.classList.add('text-red-500', 'dark:text-red-400');
+
+            initQuill(); 
+            renderGridCollection(globalPostsData, 'posts', 'galleryGrid', 'loadingGallery');
+            renderGridCollection(globalProjectsData, 'projects', 'projectsGrid', 'loadingProjects');
+            renderGridCollection(globalMeshtasticData, 'meshtastic', 'meshtasticGrid', 'loadingMeshtastic');
+            renderHistory(globalHistoryData);
+        }
+
+        googleLoginBtn.addEventListener('click', async () => {
+            if(!auth) return;
+            try {
+                const provider = new window.GoogleAuthProvider();
+                const result = await window.signInWithPopup(auth, provider);
+                const emailLogat = result.user.email;
+
+                if (emailuriPermise.includes(emailLogat)) {
+                    loginSuccess();
+                } else {
+                    await window.signOut(auth);
+                    await window.signInAnonymously(auth); 
+                    alert('Acces respins! Contul (' + emailLogat + ') nu este autorizat.');
+                }
+            } catch (error) {
+                alert('Eroare conectare Google: ' + error.message);
+            }
+        });
+
+        window.stergePostare = async function(id, collectionType, event) {
+            if(event) { event.preventDefault(); event.stopPropagation(); }
+            if(!isAdmin) return;
+            if(!confirm('Sigur dorești să ștergi această postare definitiv?')) return;
+            try {
+                if(db) await window.deleteDoc(window.doc(db, collectionType, String(id)));
+                if(editingPostId === id) resetFormToCreate(); 
+                if(window.location.hash === `#postare-${id}`) window.history.back();
+            } catch(e) { alert("Eroare la ștergere: " + e.message); }
+        };
+
+        // ==========================================
+        // 🔄 SISTEM DRAG AND DROP
+        // ==========================================
+        async function handleReorder(collectionType, oldIndex, newIndex) {
+            if (oldIndex === newIndex) return;
+            
+            let listToUse;
+            if(collectionType === 'posts') listToUse = [...globalPostsData];
+            else if(collectionType === 'projects') listToUse = [...globalProjectsData];
+            else if(collectionType === 'meshtastic') listToUse = [...globalMeshtasticData];
+            else listToUse = [...globalHistoryData];
+            
+            const timestamps = listToUse.map(item => item.rawCreatedAt);
+            const movedItem = listToUse.splice(oldIndex, 1)[0];
+            listToUse.splice(newIndex, 0, movedItem);
+
+            try {
+                const updatePromises = listToUse.map((item, index) => {
+                    if (item.rawCreatedAt !== timestamps[index]) {
+                        return window.updateDoc(window.doc(db, collectionType, String(item.id)), { createdAt: timestamps[index] });
+                    }
+                }).filter(Boolean); 
+                await Promise.all(updatePromises);
+            } catch (err) { alert('Eroare la reordonare: ' + err.message); }
+        }
+
+        function initDragAndDrop(type, containerId) {
+            if (!isAdmin) return;
+            const el = document.getElementById(containerId);
+            const options = { animation: 150, handle: '.drag-handle', ghostClass: 'opacity-50', onEnd: function(evt) { handleReorder(type, evt.oldIndex, evt.newIndex); } };
+            
+            if (type === 'posts') { if(sortableGallery) sortableGallery.destroy(); sortableGallery = new Sortable(el, options); }
+            else if (type === 'projects') { if(sortableProjects) sortableProjects.destroy(); sortableProjects = new Sortable(el, options); }
+            else if (type === 'meshtastic') { if(sortableMeshtastic) sortableMeshtastic.destroy(); sortableMeshtastic = new Sortable(el, options); }
+            else if (type === 'history') { if(sortableHistory) sortableHistory.destroy(); sortableHistory = new Sortable(el, options); }
+        }
+
+        // ==========================================
+        // RENDER ISTORIC (TIMELINE)
+        // ==========================================
+        function renderHistory(historyList) {
+            const container = document.getElementById('historyTimeline');
+            document.getElementById('loadingHistory').classList.add('hidden');
+            container.innerHTML = '';
+            globalHistoryData = historyList;
+
+            if (historyList.length === 0) {
+                container.innerHTML = '<p class="text-slate-500 dark:text-gray-400 text-center">Istoricul este în curs de actualizare.</p>';
+                return;
+            }
+
+            const dotColors = ['bg-sky-500', 'bg-emerald-500', 'bg-blue-500', 'bg-amber-500', 'bg-purple-500'];
+            const textColors = ['text-sky-600 dark:text-sky-400', 'text-emerald-600 dark:text-emerald-400', 'text-blue-600 dark:text-blue-400', 'text-amber-600 dark:text-amber-400', 'text-purple-600 dark:text-purple-400'];
+
+            historyList.forEach((item, index) => {
+                const docData = item.data; 
+                const id = item.id;
+                const dotClass = dotColors[index % dotColors.length] + ' shadow-[0_0_10px_currentColor]';
+                const textClass = textColors[index % textColors.length];
+                
+                const el = document.createElement('div');
+                el.className = 'mb-10 ml-8 relative group';
+                
+                let adminButtonsHtml = isAdmin ? `
+                    <div class="absolute top-3 right-3 z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span class="drag-handle bg-slate-700/90 hover:bg-slate-800 text-white p-2 rounded-full shadow-lg transition-transform hover:scale-110" title="Trage pentru a muta">🖐️</span>
+                        <div class="border-l border-white/20 mx-1"></div>
+                        <button onclick="editeazaPostare('${id}', 'history', event)" class="bg-blue-500/90 hover:bg-blue-600 text-white p-2 rounded-full shadow-lg transition-transform hover:scale-110" title="Editează">✏️</button>
+                        <button onclick="stergePostare('${id}', 'history', event)" class="bg-red-500/90 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-transform hover:scale-110" title="Șterge">🗑️</button>
+                    </div>` : '';
+
+                el.innerHTML = `
+                    <span class="absolute -left-11 top-1 w-6 h-6 rounded-full border-4 border-slate-50 dark:border-[#0f172a] ${dotClass}"></span>
+                    <div class="glass-panel p-6 rounded-xl hover:-translate-y-1 transition-transform duration-300 border border-slate-200 dark:border-white/10 relative overflow-hidden">
+                        ${adminButtonsHtml}
+                        <h4 class="text-2xl font-bold text-slate-900 dark:text-white mb-1 pr-16">${docData.title}</h4>
+                        <span class="${textClass} text-sm font-bold uppercase tracking-wider block mb-4">${docData.historyDate || 'Eveniment'}</span>
+                        <div class="prose prose-slate dark:prose-invert max-w-none prose-img:rounded-xl prose-video:rounded-xl">${docData.content}</div>
+                    </div>`;
+                container.appendChild(el);
+            });
+            if(isAdmin) initDragAndDrop('history', 'historyTimeline');
+        }
+
+        // ==========================================
+        // RENDER GRILA GENERICA
+        // ==========================================
+        function getMediaHtmlForCard(docData, collectionType) {
+            let mediaHtml = '';
+            let iconLabel = collectionType === 'projects' ? '🛠️ PROIECT' : collectionType === 'meshtastic' ? '📡 REȚEA' : '📝 JURNAL';
+            
+            if (collectionType === 'meshtastic' && docData.camUrl && docData.camUrl.trim() !== '') {
+                // Pentru carduri, daca e stream, incercam sa-i dam autoplay mut
+                let finalCamUrl = docData.camUrl;
+                if(finalCamUrl.includes('youtube.com') || finalCamUrl.includes('youtu.be')) {
+                    const sep = finalCamUrl.includes('?') ? '&' : '?';
+                    finalCamUrl += `${sep}autoplay=1&mute=1`;
+                }
+
+                return {
+                    html: `<div class="h-48 w-full bg-black relative flex items-center justify-center">
+                                <iframe src="${finalCamUrl}" class="w-full h-full border-0" allow="autoplay" allowfullscreen></iframe>
+                                <div class="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded animate-pulse shadow-lg z-20">🔴 LIVE</div>
+                           </div>`,
+                    label: '🎥 CAMERĂ LIVE'
+                };
+            }
+
+            let manualUrl = docData.thumbnailUrl ? docData.thumbnailUrl.trim() : null;
+            const generateHtmlFromUrl = (url) => {
+                const ytMatch = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);
+                if (ytMatch && ytMatch[2].length === 11) {
+                    return { html: `<div class="h-48 w-full bg-slate-200 dark:bg-slate-800 relative flex items-center justify-center overflow-hidden"><img src="https://img.youtube.com/vi/${ytMatch[2]}/mqdefault.jpg" class="w-full h-full object-cover opacity-80 transition-transform duration-500 group-hover:scale-105"><div class="absolute text-5xl text-white/90 drop-shadow-lg">▶</div></div>`, label: '📹 VIDEO' };
+                } else if (url.toLowerCase().includes('.mp4') || url.toLowerCase().includes('.webm') || url.toLowerCase().includes('.mov')) {
+                    // AM ACTIVAT AUTOPLAY MUTED DIRECT ÎN CARD
+                    return { html: `<div class="h-48 w-full bg-black relative flex items-center justify-center overflow-hidden"><video src="${url}" class="w-full h-full object-cover opacity-90 transition-transform duration-500 group-hover:scale-105" autoplay muted loop playsinline></video><div class="absolute text-3xl text-white/80 drop-shadow-lg pointer-events-none">🎬</div></div>`, label: '🎥 VIDEO SCURT' };
+                } else {
+                    return { html: `<div class="h-48 w-full bg-slate-200 dark:bg-slate-800 overflow-hidden"><img src="${url}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.style.display='none'"></div>`, label: '📸 FOTO' };
+                }
+            };
+
+            if (manualUrl) {
+                const result = generateHtmlFromUrl(manualUrl);
+                mediaHtml = result.html; iconLabel = result.label;
+            } else {
+                const tempDiv = document.createElement('div'); tempDiv.innerHTML = docData.content;
+                const firstImg = tempDiv.querySelector('img'); const firstIframe = tempDiv.querySelector('iframe');
+                if (firstImg) { const result = generateHtmlFromUrl(firstImg.src); mediaHtml = result.html; iconLabel = result.label; } 
+                else if (firstIframe && firstIframe.src.includes('youtube')) { const result = generateHtmlFromUrl(firstIframe.src); mediaHtml = result.html; iconLabel = result.label; }
+            }
+            
+            const tempDivText = document.createElement('div'); tempDivText.innerHTML = docData.content;
+            const textExcerpt = tempDivText.textContent.trim().substring(0, 110) + '...';
+
+            return { mediaHtml, iconLabel, textExcerpt };
+        }
+
+        function renderGridCollection(list, collectionType, containerId, loadingId) {
+            const grid = document.getElementById(containerId);
+            document.getElementById(loadingId).classList.add('hidden');
+            grid.innerHTML = '';
+            
+            if(collectionType === 'posts') globalPostsData = list;
+            else if(collectionType === 'projects') globalProjectsData = list;
+            else if(collectionType === 'meshtastic') globalMeshtasticData = list;
+
+            if (list.length === 0) {
+                grid.innerHTML = '<p class="text-slate-500 dark:text-gray-400 col-span-full text-center">Nicio înregistrare disponibilă.</p>';
+                return;
+            }
+
+            list.forEach((item, index) => {
+                const docData = item.data; 
+                const id = item.id;
+                
+                const el = document.createElement('div');
+                el.className = 'glass-panel rounded-xl overflow-hidden shadow-lg flex flex-col h-full border border-slate-200 dark:border-white/5 relative group';
+                
+                let adminButtonsHtml = isAdmin ? `
+                    <div class="absolute top-3 right-3 z-30 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span class="drag-handle bg-slate-700/90 hover:bg-slate-800 text-white p-2 rounded-full shadow-lg transition-transform hover:scale-110" title="Trage pentru a muta">🖐️</span>
+                        <div class="border-l border-white/20 mx-1"></div>
+                        <button onclick="editeazaPostare('${id}', '${collectionType}', event)" class="bg-blue-500/90 hover:bg-blue-600 text-white p-2 rounded-full shadow-lg transition-transform hover:scale-110">✏️</button>
+                        <button onclick="stergePostare('${id}', '${collectionType}', event)" class="bg-red-500/90 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-transform hover:scale-110">🗑️</button>
+                    </div>` : '';
+
+                const { mediaHtml, iconLabel, textExcerpt } = getMediaHtmlForCard(docData, collectionType);
+                const dateStr = docData.createdAt ? new Date(docData.createdAt).toLocaleDateString('ro-RO') : 'Recenta';
+                let accentColor = collectionType === 'projects' ? 'amber' : collectionType === 'meshtastic' ? 'red' : 'sky';
+
+                el.innerHTML = `
+                    ${adminButtonsHtml}
+                    <a href="#postare-${id}" class="block h-full cursor-pointer hover:border-${accentColor}-500/50 dark:hover:border-${accentColor}-500/50 hover:shadow-xl dark:hover:shadow-[0_0_20px_rgba(var(--tw-colors-${accentColor}-500),0.2)] hover:-translate-y-1 transition-all duration-300">
+                        ${mediaHtml}
+                        <div class="p-6 flex flex-col flex-grow">
+                            <div class="text-xs text-${accentColor}-600 dark:text-${accentColor}-400 mb-2 font-semibold uppercase tracking-wider">${iconLabel} • ${dateStr}</div>
+                            <h4 class="text-xl font-bold text-slate-900 dark:text-white mb-3 line-clamp-2">${docData.title}</h4>
+                            <p class="text-slate-600 dark:text-gray-300 text-sm flex-grow line-clamp-3">${textExcerpt}</p>
+                            <div class="mt-4 text-${accentColor}-600 dark:text-${accentColor}-500 text-sm font-semibold flex items-center gap-1 group-hover:text-${accentColor}-400 transition-colors">
+                                Vezi detalii <span class="group-hover:translate-x-1 transition-transform">→</span>
+                            </div>
+                        </div>
+                    </a>`;
+                grid.appendChild(el);
+            });
+
+            if(isAdmin) initDragAndDrop(collectionType, containerId);
+        }
+
+        // ==========================================
+        // VIZUALIZARE DETALIATĂ POSTARE
+        // ==========================================
+        function renderPostDetail(postId) {
+            const container = document.getElementById('postareDetaliuContinut');
+            let postItem = globalPostsData.find(p => String(p.id) === String(postId));
+            let foundCollection = 'posts';
+            
+            if(!postItem) { postItem = globalProjectsData.find(p => String(p.id) === String(postId)); foundCollection = 'projects'; }
+            if(!postItem) { postItem = globalMeshtasticData.find(p => String(p.id) === String(postId)); foundCollection = 'meshtastic'; }
+
+            if (!postItem) {
+                container.innerHTML = '<div class="text-center text-red-500 py-10">Postarea nu a fost găsită.</div>';
+                return;
+            }
+
+            const docData = postItem.data;
+            const dateStr = docData.createdAt ? new Date(docData.createdAt).toLocaleDateString('ro-RO') : 'Recenta';
+            
+            let adminButtonsHtml = isAdmin ? `
+                <div class="absolute top-6 right-6 md:top-10 md:right-10 flex gap-3 z-10">
+                    <button onclick="editeazaPostare('${postId}', '${foundCollection}')" class="bg-blue-500/90 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg transition-transform hover:scale-105 font-semibold text-sm flex items-center gap-2"><span>✏️</span> Editează</button>
+                    <button onclick="stergePostare('${postId}', '${foundCollection}')" class="bg-red-500/90 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg transition-transform hover:scale-105 font-semibold text-sm flex items-center gap-2"><span>🗑️</span> Șterge</button>
+                </div>` : '';
+                
+            let cameraLiveHtml = '';
+            if (foundCollection === 'meshtastic' && docData.camUrl && docData.camUrl.trim() !== '') {
+                // LOGICA DE AUTOPLAY PENTRU STREAM LIVE
+                let finalCamUrl = docData.camUrl;
+                if(finalCamUrl.includes('youtube.com') || finalCamUrl.includes('youtu.be')) {
+                    const sep = finalCamUrl.includes('?') ? '&' : '?';
+                    // Adăugăm autoplay=1 și mute=1 (obligatoriu pentru pornire automată în browsere)
+                    finalCamUrl += `${sep}autoplay=1&mute=1&rel=0`;
+                }
+
+                cameraLiveHtml = `
+                    <div class="w-full aspect-video bg-black rounded-xl overflow-hidden shadow-xl mb-8 relative border border-slate-700">
+                        <iframe src="${finalCamUrl}" class="w-full h-full border-0" allow="autoplay; fullscreen" allowfullscreen></iframe>
+                        <div class="absolute top-4 right-4 bg-red-600 text-white text-sm font-bold px-3 py-1 rounded-full animate-pulse shadow-lg z-20">🔴 STREAM LIVE</div>
+                    </div>`;
+            }
+
+            container.innerHTML = `
+                ${adminButtonsHtml}
+                <div class="text-sm text-slate-500 dark:text-gray-400 mb-4 font-semibold tracking-widest uppercase mt-12 md:mt-0">📅 ${dateStr}</div>
+                <h1 class="text-3xl md:text-5xl font-bold text-slate-900 dark:text-white mb-10 leading-tight md:pr-48">${docData.title}</h1>
+                ${cameraLiveHtml}
+                <hr class="border-slate-200 dark:border-slate-700 mb-10">
+                <div class="prose prose-slate dark:prose-invert prose-lg max-w-none prose-a:text-sky-500 hover:prose-a:text-sky-400 prose-img:rounded-xl">
+                    ${docData.content}
+                </div>`;
+        }
+
+        // =========================================================================
+        // ✅ CONEXIUNEA FIREBASE
+        // =========================================================================
+        async function initApp() {
+            const firebaseConfig = {
+                apiKey: "AIzaSyCgvuangBG-5tpPYozE1awZFNHZEgalIXo",
+                authDomain: "yo8aiu-website.firebaseapp.com",
+                projectId: "yo8aiu-website",
+                storageBucket: "yo8aiu-website.firebasestorage.app",
+                messagingSenderId: "513332851913",
+                appId: "1:513332851913:web:a6cfd2923636edab688918",
+                measurementId: "G-8T7YRFVP5D"
+            };
+
+            try {
+                const app = window.initializeApp(firebaseConfig);
+                auth = window.getAuth(app); 
+                db = window.getFirestore(app);
+                storage = window.getStorage(app); 
+
+                document.getElementById('addPostForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    if (!isAdmin || !auth.currentUser || !quillEditor) return;
+                    
+                    const btn = document.getElementById('submitBtn'); 
+                    const originalText = btn.textContent;
+                    btn.disabled = true; 
+                    btn.textContent = 'Inițializare încărcare... ⏳';
+                    
+                    const selectedCollection = document.getElementById('postCollection').value;
+                    const richContent = quillEditor.root.innerHTML;
+                    
+                    let finalThumbnailUrl = document.getElementById('postThumbnailUrl').value;
+                    const thumbnailFile = document.getElementById('postThumbnailFile').files[0];
+
+                    if (thumbnailFile) {
+                        try {
+                            const storageRef = window.ref(storage, 'coperte/' + Date.now() + '_' + thumbnailFile.name);
+                            finalThumbnailUrl = await new Promise((resolve, reject) => {
+                                const uploadTask = window.uploadBytesResumable(storageRef, thumbnailFile);
+                                uploadTask.on('state_changed', 
+                                    (snapshot) => {
+                                        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                                        btn.textContent = `Se încarcă coperta... ${Math.round(progress)}% ⏳`;
+                                    }, 
+                                    (error) => reject(error), 
+                                    async () => {
+                                        const downloadURL = await window.getDownloadURL(uploadTask.snapshot.ref);
+                                        resolve(downloadURL);
+                                    }
+                                );
+                            });
+
+                        } catch(err) {
+                            alert('Eroare Firebase Storage: ' + err.message);
+                            btn.disabled = false; btn.textContent = originalText;
+                            return;
+                        }
+                    }
+
+                    btn.textContent = 'Se salvează în baza de date... 💾';
+
+                    let docData = { title: document.getElementById('postTitle').value, content: richContent };
+
+                    if (selectedCollection === 'posts' || selectedCollection === 'projects') {
+                        docData.thumbnailUrl = finalThumbnailUrl;
+                    } else if (selectedCollection === 'meshtastic') {
+                        docData.thumbnailUrl = finalThumbnailUrl;
+                        docData.camUrl = document.getElementById('meshtasticCamUrl').value;
+                    } else if (selectedCollection === 'history') {
+                        docData.historyDate = document.getElementById('historyDateInput').value;
+                    }
+
+                    try {
+                        if(editingPostId) await window.updateDoc(window.doc(db, editingCollection, String(editingPostId)), docData);
+                        else { docData.createdAt = window.serverTimestamp(); await window.addDoc(window.collection(db, selectedCollection), docData); }
+                        resetFormToCreate();
+                    } catch(err) { alert('Eroare Bază de Date: ' + err.message); } 
+                    finally { btn.disabled = false; btn.textContent = originalText; }
+                });
+                
+                await window.signInAnonymously(auth);
+
+                window.onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        const setupSnapshot = (colName, callback) => {
+                            window.onSnapshot(window.query(window.collection(db, colName), window.orderBy('createdAt', colName === 'history' ? 'asc' : 'desc')), (snapshot) => {
+                                callback(snapshot.docs.map(doc => ({ id: doc.id, data: { ...doc.data(), createdAt: doc.data().createdAt?.toMillis() || Date.now() }, rawCreatedAt: doc.data().createdAt })));
+                            });
+                        };
+
+                        setupSnapshot('posts', (data) => { renderGridCollection(data, 'posts', 'galleryGrid', 'loadingGallery'); if(window.location.hash.startsWith('#postare-')) navigate(); });
+                        setupSnapshot('projects', (data) => { renderGridCollection(data, 'projects', 'projectsGrid', 'loadingProjects'); });
+                        setupSnapshot('meshtastic', (data) => { renderGridCollection(data, 'meshtastic', 'meshtasticGrid', 'loadingMeshtastic'); });
+                        setupSnapshot('history', (data) => { renderHistory(data); });
+                    }
+                });
+            } catch (error) { console.error("Eroare Firebase: ", error); }
+        }
+        
+        window.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
