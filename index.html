@@ -641,38 +641,21 @@
                 
                 try {
                     // Punem pozele din editor intr-un folder separat
-                    const storageRef = window.ref(storage, 'continut_postari/' + Date.now() + '_' + file.name);
-                    const uploadTask = window.uploadBytesResumable(storageRef, file);
+                    const fd = new FormData();
+fd.append('file', file);
+const res = await fetch('/upload.php', {method:'POST', body:fd});
+const data = await res.json();
+if(data.error) throw new Error(data.error);
+const downloadURL = data.url;
 
-                    uploadTask.on('state_changed', 
-                        (snapshot) => {
-                            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                            btn.textContent = `Se încarcă media în text... ${Math.round(progress)}% ⏳`;
-                        }, 
-                        (error) => {
-                            alert("Eroare la încărcare în editor: " + error.message);
-                            btn.disabled = false;
-                            btn.textContent = originalText;
-                        }, 
-                        async () => {
-                            // S-a terminat incarcarea. Luam linkul!
-                            const downloadURL = await window.getDownloadURL(uploadTask.snapshot.ref);
-                            
-                            // Gasim unde era cursorul in text
-                            const range = quillEditor.getSelection(true);
-                            
-                            // Inseram poza/video EXACT in text la pozitia aia
-                            quillEditor.insertEmbed(range.index, type, downloadURL);
-                            
-                            // Mutam cursorul cu un spatiu mai incolo sa poata scrie mai departe
-                            quillEditor.setSelection(range.index + 1);
-                            
-                            btn.disabled = false;
-                            btn.textContent = originalText;
-                        }
-                    );
+const range = quillEditor.getSelection(true);
+quillEditor.insertEmbed(range.index, type, downloadURL);
+quillEditor.setSelection(range.index + 1);
+btn.disabled = false;
+btn.textContent = originalText;
+
                 } catch(err) {
-                    alert('Eroare: ' + err.message);
+                    alert('Eroare upload: ' + err.message);
                     btn.disabled = false;
                     btn.textContent = originalText;
                 }
@@ -1144,21 +1127,13 @@
 
                     if (thumbnailFile) {
                         try {
-                            const storageRef = window.ref(storage, 'coperte/' + Date.now() + '_' + thumbnailFile.name);
-                            finalThumbnailUrl = await new Promise((resolve, reject) => {
-                                const uploadTask = window.uploadBytesResumable(storageRef, thumbnailFile);
-                                uploadTask.on('state_changed', 
-                                    (snapshot) => {
-                                        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                                        btn.textContent = `Se încarcă coperta... ${Math.round(progress)}% ⏳`;
-                                    }, 
-                                    (error) => reject(error), 
-                                    async () => {
-                                        const downloadURL = await window.getDownloadURL(uploadTask.snapshot.ref);
-                                        resolve(downloadURL);
-                                    }
-                                );
-                            });
+                            const fd = new FormData();
+fd.append('file', thumbnailFile);
+const res = await fetch('/upload.php', {method:'POST', body:fd});
+const data = await res.json();
+if(data.error) throw new Error(data.error);
+finalThumbnailUrl = data.url;
+
 
                         } catch(err) {
                             alert('Eroare Firebase Storage: ' + err.message);
