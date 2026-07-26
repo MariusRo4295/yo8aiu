@@ -25,12 +25,16 @@
 
     <!-- Sortable.js (Pentru Drag & Drop) -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+    <!-- AOS - Animate On Scroll -->
+    <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
     
     <!-- Firebase Core & Auth & Firestore & Storage -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, deleteDoc, updateDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
         window.initializeApp = initializeApp;
@@ -50,6 +54,8 @@
         window.doc = doc;
         window.deleteDoc = deleteDoc;
         window.updateDoc = updateDoc;
+        window.setDoc = setDoc;
+        window.getDoc = getDoc;
         
         window.getStorage = getStorage;
         window.ref = ref;
@@ -58,6 +64,10 @@
     </script>
 
     <style>
+        :root {
+            --accent-glow: rgba(56, 189, 248, 0.35);
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             overflow-x: hidden;
@@ -67,18 +77,38 @@
             transition: background-color 0.3s ease, color 0.3s ease;
         }
 
+        /* ==========================================
+           GLASSMORPHISM RAFINAT
+           ========================================== */
         .glass-panel {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            position: relative;
+            background: linear-gradient(160deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.55));
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
             border: 1px solid rgba(0, 0, 0, 0.05);
+            border-top: 1px solid rgba(255, 255, 255, 0.9);
+            border-left: 1px solid rgba(255, 255, 255, 0.7);
             box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+            transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease, border-color 0.35s ease;
         }
-        
+
         .dark .glass-panel {
-            background: rgba(15, 23, 42, 0.6);
+            background: linear-gradient(160deg, rgba(30, 41, 59, 0.65), rgba(15, 23, 42, 0.55));
             border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: none;
+            border-top: 1px solid rgba(148, 163, 184, 0.25);
+            border-left: 1px solid rgba(148, 163, 184, 0.15);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+        }
+
+        /* Glow-pe-hover reutilizabil pentru carduri/butoane */
+        .glow-hover { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease, border-color 0.35s ease; }
+        .glow-hover:hover {
+            transform: translateY(-4px) scale(1.015);
+            border-color: rgba(56, 189, 248, 0.5) !important;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.08), 0 0 25px rgba(56, 189, 248, 0.15);
+        }
+        .dark .glow-hover:hover {
+            box-shadow: 0 12px 30px rgba(0,0,0,0.4), 0 0 30px rgba(56, 189, 248, 0.25);
         }
 
         .chart-container {
@@ -101,24 +131,51 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        /* Reveal generic pentru Intersection Observer (folosit pe langa AOS, pt elemente proprii) */
+        .reveal-init { opacity: 0; transform: translateY(28px); transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1), transform 0.7s cubic-bezier(0.22, 1, 0.36, 1); }
+        .reveal-init.reveal-visible { opacity: 1; transform: translateY(0); }
+        .reveal-init.reveal-left { transform: translateX(-36px); }
+        .reveal-init.reveal-left.reveal-visible { transform: translateX(0); }
+        .reveal-init.reveal-right { transform: translateX(36px); }
+        .reveal-init.reveal-right.reveal-visible { transform: translateX(0); }
+
         #hero-canvas {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             z-index: -1; opacity: 0.8; pointer-events: none;
         }
-        .dark #hero-canvas { opacity: 0.4; }
+        .dark #hero-canvas { opacity: 0.5; }
 
-        .nav-link { transition: all 0.3s ease; }
+        .nav-link { transition: all 0.3s ease; position: relative; }
+        .nav-link::after {
+            content: ''; position: absolute; left: 0; bottom: -2px; height: 2px; width: 0;
+            background: linear-gradient(90deg, #0ea5e9, #10b981); transition: width 0.3s ease;
+        }
+        .nav-link:hover::after, .nav-link.active-link::after { width: 100%; }
         .nav-link:hover, .nav-link.active-link { color: #0ea5e9; }
         .dark .nav-link:hover, .dark .nav-link.active-link { color: #38bdf8; text-shadow: 0 0 8px rgba(56, 189, 248, 0.4); }
 
-        ::-webkit-scrollbar { width: 8px; }
+        /* ==========================================
+           SCROLLBAR TEMATIC
+           ========================================== */
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
         ::-webkit-scrollbar-track { background: #f1f5f9; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #38bdf8, #0ea5e9);
+            border-radius: 6px;
+            border: 2px solid #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #0ea5e9, #0284c7); }
+
         .dark ::-webkit-scrollbar-track { background: #0f172a; }
-        .dark ::-webkit-scrollbar-thumb { background: #334155; }
-        .dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        .dark ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #38bdf8, #10b981);
+            border: 2px solid #0f172a;
+            box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+        }
+        .dark ::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #7dd3fc, #34d399); }
+
+        * { scrollbar-width: thin; scrollbar-color: #38bdf8 #f1f5f9; }
+        .dark * { scrollbar-color: #38bdf8 #0f172a; }
 
         /* Stiluri Quill Editor */
         .dark .ql-toolbar { background: #1e293b; border-color: #334155; border-radius: 0.5rem 0.5rem 0 0; }
@@ -140,11 +197,163 @@
         .ql-align-justify { text-align: justify; }
         .ql-align-center img, .ql-align-center iframe { margin-left: auto; margin-right: auto; display: block; }
 
+        /* Etichete prietenoase pentru dropdown-urile "size" si "font" din toolbar */
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="small"]::before,
+        .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="small"]::before { content: 'Mic'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label:not([data-value])::before,
+        .ql-snow .ql-picker.ql-size .ql-picker-item:not([data-value])::before { content: 'Normal'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="large"]::before,
+        .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="large"]::before { content: 'Mare'; }
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="huge"]::before,
+        .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="huge"]::before { content: 'Foarte mare'; }
+
+        /* Continut blockquote / code-block generat de Quill, afisat si in prose (pagina de detaliu) */
+        .ql-editor blockquote, .prose blockquote {
+            border-left: 4px solid #0ea5e9; padding-left: 1rem; font-style: italic; color: inherit; opacity: 0.85;
+        }
+        .ql-editor pre.ql-syntax, .prose pre {
+            background: #0f172a; color: #e2e8f0; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; font-size: 0.9rem;
+        }
+
         /* Clasa pentru cursor de prindere */
         .drag-handle { cursor: grab; }
         .drag-handle:active { cursor: grabbing; }
 
         main { flex-grow: 1; display: flex; flex-direction: column; }
+
+        /* ==========================================
+           HERO: GLITCH + TYPING PENTRU INDICATIV
+           ========================================== */
+        .glitch-wrap { position: relative; display: inline-block; }
+        .glitch-text {
+            position: relative;
+            display: inline-block;
+        }
+        .glitch-text.is-glitching::before,
+        .glitch-text.is-glitching::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0; left: 0; width: 100%;
+            background: inherit;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            overflow: hidden;
+        }
+        .glitch-text.is-glitching::before {
+            left: 2px; text-shadow: -2px 0 #38bdf8;
+            animation: glitch-anim-1 0.35s infinite linear alternate-reverse;
+        }
+        .glitch-text.is-glitching::after {
+            left: -2px; text-shadow: -2px 0 #10b981, 2px 2px #ef4444;
+            animation: glitch-anim-2 0.3s infinite linear alternate-reverse;
+        }
+        @keyframes glitch-anim-1 {
+            0% { clip-path: inset(20% 0 60% 0); }
+            20% { clip-path: inset(70% 0 5% 0); }
+            40% { clip-path: inset(10% 0 80% 0); }
+            60% { clip-path: inset(50% 0 30% 0); }
+            80% { clip-path: inset(5% 0 70% 0); }
+            100% { clip-path: inset(65% 0 15% 0); }
+        }
+        @keyframes glitch-anim-2 {
+            0% { clip-path: inset(15% 0 70% 0); }
+            20% { clip-path: inset(60% 0 10% 0); }
+            40% { clip-path: inset(80% 0 3% 0); }
+            60% { clip-path: inset(25% 0 55% 0); }
+            80% { clip-path: inset(45% 0 40% 0); }
+            100% { clip-path: inset(5% 0 85% 0); }
+        }
+        .typing-cursor {
+            display: inline-block; width: 3px; margin-left: 4px;
+            background: currentColor; animation: blink-cursor 0.8s step-end infinite;
+        }
+        @keyframes blink-cursor { 50% { opacity: 0; } }
+
+        .hero-badge-pulse {
+            animation: badge-pulse 3s ease-in-out infinite;
+        }
+        @keyframes badge-pulse {
+            0%, 100% { filter: drop-shadow(0 0 0px rgba(56, 189, 248, 0)); transform: translateY(0); }
+            50% { filter: drop-shadow(0 0 18px rgba(56, 189, 248, 0.45)); transform: translateY(-6px); }
+        }
+
+        /* ==========================================
+           TIMELINE - UMPLERE PROGRESIVA
+           ========================================== */
+        #historyTimeline { overflow: hidden; }
+        #historyTimelineFill {
+            position: absolute; top: 0; left: -2px; width: 2px; height: 0%;
+            background: linear-gradient(180deg, #0ea5e9, #10b981, #38bdf8);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
+            transition: height 0.25s ease-out;
+            z-index: 1;
+        }
+
+        /* ==========================================
+           SKELETON LOADER
+           ========================================== */
+        .skeleton-card {
+            border-radius: 0.75rem;
+            overflow: hidden;
+            position: relative;
+        }
+        .skeleton-shimmer {
+            position: relative;
+            overflow: hidden;
+            background: rgba(148, 163, 184, 0.18);
+        }
+        .skeleton-shimmer::after {
+            content: '';
+            position: absolute; top: 0; left: 0; height: 100%; width: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+            animation: shimmer-sweep 1.6s infinite;
+        }
+        .dark .skeleton-shimmer::after {
+            background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.15), transparent);
+        }
+        @keyframes shimmer-sweep {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        /* ==========================================
+           CHATBOT "cmc"
+           ========================================== */
+        #cmcToggleBtn {
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+            box-shadow: 0 6px 20px rgba(14, 165, 233, 0.4);
+        }
+        #cmcToggleBtn:hover { transform: scale(1.08) rotate(-4deg); box-shadow: 0 10px 28px rgba(14, 165, 233, 0.55); }
+        #cmcToggleBtn .ping-dot {
+            animation: cmc-ping 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+        @keyframes cmc-ping {
+            75%, 100% { transform: scale(2.2); opacity: 0; }
+        }
+
+        #cmcWindow {
+            transform-origin: bottom right;
+            transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        #cmcWindow.cmc-hidden { opacity: 0; transform: scale(0.9) translateY(12px); pointer-events: none; }
+        #cmcWindow.cmc-visible { opacity: 1; transform: scale(1) translateY(0); pointer-events: auto; }
+
+        .cmc-bubble { animation: cmc-bubble-in 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
+        @keyframes cmc-bubble-in {
+            from { opacity: 0; transform: translateY(8px) scale(0.97); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .cmc-typing-dot {
+            animation: cmc-typing-bounce 1.1s ease-in-out infinite;
+        }
+        .cmc-typing-dot:nth-child(2) { animation-delay: 0.15s; }
+        .cmc-typing-dot:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes cmc-typing-bounce {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+            30% { transform: translateY(-4px); opacity: 1; }
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 antialiased">
@@ -206,6 +415,25 @@
         </div>
     </div>
 
+    <!-- MODAL EDITARE "DESPRE MINE" (separat de panoul principal de postari) -->
+    <div id="aboutEditModal" class="fixed inset-0 z-[60] hidden bg-slate-900/40 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 transition-colors duration-300">
+        <div class="glass-panel p-8 rounded-2xl max-w-2xl w-full relative border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto">
+            <button id="closeAboutModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 dark:hover:text-white text-xl z-10">✕</button>
+            <h3 class="text-2xl font-bold mb-2 text-sky-500 dark:text-sky-400 flex items-center gap-2"><span>✏️</span> Editează „Despre Mine"</h3>
+            <p class="text-sm text-slate-500 dark:text-gray-300 mb-6">Modificările se salvează direct pe site, imediat ce publici.</p>
+
+            <form id="aboutEditForm" class="space-y-4">
+                <div class="text-slate-900 dark:text-white relative">
+                    <div id="aboutEditorContainer"></div>
+                </div>
+                <div class="flex flex-col md:flex-row gap-4 mt-4">
+                    <button type="submit" id="aboutSubmitBtn" class="flex-1 md:flex-none bg-gradient-to-r from-sky-500 to-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:shadow-lg dark:hover:shadow-[0_0_15px_rgba(56,189,248,0.5)] transition-all">Salvează Modificările</button>
+                    <button type="button" id="aboutCancelBtn" class="flex-1 md:flex-none bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-white font-bold py-3 px-8 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-all">Anulează</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- PANOUL DE ADMIN -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 w-full">
         <div id="adminPanel" class="hidden glass-panel p-6 rounded-2xl mb-8 border border-sky-500/30 shadow-md dark:shadow-[0_0_20px_rgba(56,189,248,0.1)] mt-4">
@@ -257,12 +485,12 @@
         <!-- Pagina 1: Acasa -->
         <div id="acasa" class="page-view flex flex-col items-center justify-center pt-10 pb-10">
             <div class="text-center z-10 px-4 max-w-4xl">
-                <div class="text-6xl md:text-8xl mb-6 drop-shadow-md dark:drop-shadow-lg">📡</div>
+                <div class="text-6xl md:text-8xl mb-6 drop-shadow-md dark:drop-shadow-lg hero-badge-pulse">📡</div>
                 <h1 class="text-5xl md:text-7xl font-extrabold tracking-tight mb-4">
-                    <span class="bg-gradient-to-r from-sky-500 via-blue-600 to-emerald-500 dark:from-sky-400 dark:via-blue-500 dark:to-emerald-400 bg-clip-text text-transparent">YO8AIU</span>
+                    <span id="heroCallsign" class="glitch-text bg-gradient-to-r from-sky-500 via-blue-600 to-emerald-500 dark:from-sky-400 dark:via-blue-500 dark:to-emerald-400 bg-clip-text text-transparent" data-text="YO8AIU"><span id="heroCallsignTyped"></span><span class="typing-cursor" id="heroCursor">&nbsp;</span></span>
                 </h1>
-                <p class="text-xl md:text-2xl text-slate-600 dark:text-gray-300 mb-8 font-light">Explorând undele radio. Conectând lumea din România.</p>
-                <a href="#despre" class="inline-block glass-panel hover:bg-slate-100 dark:hover:bg-white/10 text-slate-800 dark:text-white font-semibold py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-105 shadow-md dark:shadow-[0_0_15px_rgba(56,189,248,0.3)] border border-slate-200 dark:border-white/20">
+                <p id="heroSubtitle" class="text-xl md:text-2xl text-slate-600 dark:text-gray-300 mb-8 font-light opacity-0">Explorând undele radio. Conectând lumea din România.</p>
+                <a href="#despre" id="heroCta" class="inline-block glass-panel glow-hover hover:bg-slate-100 dark:hover:bg-white/10 text-slate-800 dark:text-white font-semibold py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-105 shadow-md dark:shadow-[0_0_15px_rgba(56,189,248,0.3)] border border-slate-200 dark:border-white/20 opacity-0">
                     Intră în Lumea Mea
                 </a>
             </div>
@@ -271,26 +499,31 @@
         <!-- Pagina 2: Despre Mine -->
         <div id="despre" class="page-view block pt-10 pb-20">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="text-center mb-12">
+                <div class="text-center mb-12" data-aos="fade-up">
                     <h2 class="text-3xl md:text-4xl font-bold mb-4 text-slate-900 dark:text-white">Despre Mine</h2>
                     <div class="w-24 h-1 bg-sky-500 mx-auto rounded-full"></div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                    <div class="glass-panel p-8 rounded-2xl shadow-xl border border-slate-200 dark:border-white/10">
-                        <p class="text-lg text-slate-700 dark:text-gray-300 mb-6 leading-relaxed">
-                            Salut! Sunt operatorul stației de radioamator <strong>YO8AIU</strong>. Pasiunea mea pentru radiocomunicații a început cu mulți ani în urmă, fiind fascinat de capacitatea de a comunica dincolo de granițe folosind doar echipamente construite și configurate cu atenție.
-                        </p>
-                        <p class="text-lg text-slate-700 dark:text-gray-300 mb-6 leading-relaxed">
-                            Sunt activ preponderent în benzile de unde scurte (HF), atât în moduri analogice (SSB, CW) cât și digitale (FT8, DMR). Particip la competiții și experimentez constant cu construcția de antene noi.
-                        </p>
+                    <div class="glass-panel p-8 rounded-2xl shadow-xl border border-slate-200 dark:border-white/10 relative group" data-aos="fade-right">
+                        <button id="editAboutBtn" onclick="editeazaAbout(event)" class="hidden absolute top-4 right-4 z-30 bg-blue-500/90 hover:bg-blue-600 text-white p-2 rounded-full shadow-lg transition-transform hover:scale-110 opacity-0 group-hover:opacity-100" title="Editează Despre Mine">✏️</button>
+
+                        <div id="aboutSkeleton" class="space-y-3">
+                            <div class="skeleton-card h-5 skeleton-shimmer w-full"></div>
+                            <div class="skeleton-card h-5 skeleton-shimmer w-11/12"></div>
+                            <div class="skeleton-card h-5 skeleton-shimmer w-full mt-5"></div>
+                            <div class="skeleton-card h-5 skeleton-shimmer w-4/5"></div>
+                        </div>
+
+                        <div id="aboutContent" class="prose prose-slate dark:prose-invert max-w-none text-lg leading-relaxed hidden"></div>
+
                         <div class="grid grid-cols-2 gap-4 mt-8">
-                            <div class="bg-white dark:bg-slate-800/80 p-4 rounded-lg text-center border border-slate-200 dark:border-slate-700/50 hover:border-sky-500/50 transition-colors shadow-sm">
+                            <div class="glow-hover bg-white dark:bg-slate-800/80 p-4 rounded-lg text-center border border-slate-200 dark:border-slate-700/50 hover:border-sky-500/50 transition-colors shadow-sm">
                                 <div class="text-3xl mb-2 text-sky-500 dark:text-sky-400">🌍</div>
                                 <div class="font-bold text-slate-900 dark:text-white">DXCC</div>
                                 <div class="text-sm text-slate-500 dark:text-gray-400">Peste 100 entități</div>
                             </div>
-                            <div class="bg-white dark:bg-slate-800/80 p-4 rounded-lg text-center border border-slate-200 dark:border-slate-700/50 hover:border-emerald-500/50 transition-colors shadow-sm">
+                            <div class="glow-hover bg-white dark:bg-slate-800/80 p-4 rounded-lg text-center border border-slate-200 dark:border-slate-700/50 hover:border-emerald-500/50 transition-colors shadow-sm">
                                 <div class="text-3xl mb-2 text-emerald-500 dark:text-emerald-400">⚡</div>
                                 <div class="font-bold text-slate-900 dark:text-white">Moduri</div>
                                 <div class="text-sm text-slate-500 dark:text-gray-400">SSB, CW, DIGI</div>
@@ -298,7 +531,7 @@
                         </div>
                     </div>
 
-                    <div>
+                    <div data-aos="fade-left">
                         <h3 class="text-xl font-semibold mb-6 text-center text-slate-700 dark:text-sky-200">Distribuția Contactelor pe Continente (Estimativ)</h3>
                         <div class="chart-container glass-panel p-4 rounded-2xl shadow-xl border border-slate-200 dark:border-white/10">
                             <canvas id="contactsChart"></canvas>
@@ -311,17 +544,20 @@
         <!-- Pagina 3: Istoric -->
         <div id="istoric" class="page-view block pt-10 pb-20">
             <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="text-center mb-16">
+                <div class="text-center mb-16" data-aos="fade-up">
                     <h2 class="text-3xl md:text-4xl font-bold mb-4 text-slate-900 dark:text-white">Scurtă Istorie</h2>
                     <div class="w-24 h-1 bg-emerald-500 mx-auto rounded-full"></div>
                     <p class="mt-4 text-slate-500 dark:text-gray-400">Evoluția mea, aparatura și reperele în radioamatorism.</p>
                 </div>
 
-                <div id="loadingHistory" class="text-center py-10 text-emerald-600 dark:text-emerald-400 font-semibold animate-pulse">
-                    Se încarcă istoricul... ⏳
+                <div id="loadingHistory" class="space-y-8">
+                    <div class="skeleton-card ml-8 h-28 skeleton-shimmer"></div>
+                    <div class="skeleton-card ml-8 h-28 skeleton-shimmer"></div>
+                    <div class="skeleton-card ml-8 h-28 skeleton-shimmer"></div>
                 </div>
 
                 <div id="historyTimeline" class="relative border-l-2 border-slate-300 dark:border-slate-600/50 ml-4 md:ml-8">
+                    <div id="historyTimelineFill"></div>
                     <!-- Continutul va fi generat de Javascript -->
                 </div>
             </div>
@@ -330,7 +566,7 @@
         <!-- Pagina NOUA: Proiecte -->
         <div id="proiecte" class="page-view block pt-10 pb-20">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="text-center mb-12">
+                <div class="text-center mb-12" data-aos="fade-up">
                     <h2 class="text-3xl md:text-4xl font-bold mb-4 text-slate-900 dark:text-white flex items-center justify-center gap-3">
                         🛠️ Proiecte și Construcții
                     </h2>
@@ -338,8 +574,10 @@
                     <p class="mt-4 text-slate-500 dark:text-gray-400">Echipamente, antene și modding tehnic.</p>
                 </div>
 
-                <div id="loadingProjects" class="text-center py-10 text-amber-600 text-amber-400 font-semibold animate-pulse">
-                    Se încarcă proiectele... ⏳
+                <div id="loadingProjects" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div class="skeleton-card h-80 skeleton-shimmer"></div>
+                    <div class="skeleton-card h-80 skeleton-shimmer"></div>
+                    <div class="skeleton-card h-80 skeleton-shimmer"></div>
                 </div>
 
                 <!-- Grila Proiecte -->
@@ -351,7 +589,7 @@
         <!-- Pagina NOUA: Meshtastic -->
         <div id="meshtastic" class="page-view block pt-10 pb-20">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="text-center mb-12">
+                <div class="text-center mb-12" data-aos="fade-up">
                     <h2 class="text-3xl md:text-4xl font-bold mb-4 text-slate-900 dark:text-white flex items-center justify-center gap-3">
                         📡 Rețeaua Meshtastic
                     </h2>
@@ -359,8 +597,9 @@
                     <p class="mt-4 text-slate-500 dark:text-gray-400">Noduri IoT off-grid și transmisii live.</p>
                 </div>
 
-                <div id="loadingMeshtastic" class="text-center py-10 text-red-600 dark:text-red-400 font-semibold animate-pulse">
-                    Se încarcă datele rețelei... ⏳
+                <div id="loadingMeshtastic" class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="skeleton-card h-80 skeleton-shimmer"></div>
+                    <div class="skeleton-card h-80 skeleton-shimmer"></div>
                 </div>
 
                 <!-- Grila Meshtastic -->
@@ -372,7 +611,7 @@
         <!-- Pagina 4: Galerie -->
         <div id="galerie" class="page-view block pt-10 pb-20">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="text-center mb-12">
+                <div class="text-center mb-12" data-aos="fade-up">
                     <h2 class="text-3xl md:text-4xl font-bold mb-4 text-slate-900 dark:text-white flex items-center justify-center gap-3">
                         Galerie Jurnal
                     </h2>
@@ -380,8 +619,10 @@
                     <p class="mt-4 text-slate-500 dark:text-gray-400">QSO-uri remarcabile, activări și experimente tehnice.</p>
                 </div>
 
-                <div id="loadingGallery" class="text-center py-10 text-sky-600 dark:text-sky-400 font-semibold animate-pulse">
-                    Se încarcă log-urile... ⏳
+                <div id="loadingGallery" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div class="skeleton-card h-80 skeleton-shimmer"></div>
+                    <div class="skeleton-card h-80 skeleton-shimmer"></div>
+                    <div class="skeleton-card h-80 skeleton-shimmer"></div>
                 </div>
 
                 <!-- Grila Galerie -->
@@ -404,14 +645,14 @@
         <!-- Pagina 5: Contact -->
         <div id="contact" class="page-view block pt-10 pb-20">
             <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="text-center mb-16">
+                <div class="text-center mb-16" data-aos="fade-up">
                     <h2 class="text-3xl md:text-4xl font-bold mb-4 text-slate-900 dark:text-white">Contact</h2>
                     <div class="w-24 h-1 bg-amber-500 mx-auto rounded-full"></div>
                     <p class="mt-4 text-slate-500 dark:text-gray-400">Pentru confirmări QSL sau alte discuții.</p>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
-                    <div class="glass-panel p-8 rounded-2xl h-full flex flex-col justify-center space-y-8 shadow-xl border border-slate-200 dark:border-white/10">
+                    <div class="glass-panel p-8 rounded-2xl h-full flex flex-col justify-center space-y-8 shadow-xl border border-slate-200 dark:border-white/10" data-aos="fade-right">
                         <div class="flex items-center gap-5 text-slate-700 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white transition-colors group">
                             <div class="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-amber-500 dark:text-amber-400 group-hover:scale-110 transition-transform shadow-sm">✉️</div>
                             <div>
@@ -435,7 +676,7 @@
                         </div>
                     </div>
 
-                    <div class="glass-panel p-8 rounded-2xl shadow-xl border-t border-amber-500/30">
+                    <div class="glass-panel p-8 rounded-2xl shadow-xl border-t border-amber-500/30" data-aos="fade-left">
                         <form id="contactForm" class="space-y-5">
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-1">Nume / Indicativ</label>
@@ -445,7 +686,7 @@
                                 <label class="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-1">Mesaj</label>
                                 <textarea required rows="4" class="w-full bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 transition-colors shadow-sm"></textarea>
                             </div>
-                            <button type="button" onclick="alert('Funcționalitate demonstrativă. Trimis cu succes!')" class="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white dark:text-slate-900 font-bold py-3 rounded-lg hover:shadow-[0_0_15px_rgba(245,158,11,0.4)] transition-all">
+                            <button type="button" onclick="alert('Funcționalitate demonstrativă. Trimis cu succes!')" class="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white dark:text-slate-900 font-bold py-3 rounded-lg hover:shadow-[0_0_15px_rgba(245,158,11,0.4)] hover:scale-[1.02] transition-all">
                                 Trimite Mesaj
                             </button>
                         </form>
@@ -462,6 +703,39 @@
         </p>
     </footer>
 
+    <!-- ==========================================
+         CHATBOT AI "cmc"
+         ========================================== -->
+    <button id="cmcToggleBtn" class="fixed bottom-6 right-6 z-[70] w-16 h-16 rounded-full bg-gradient-to-br from-sky-500 to-emerald-500 text-white flex items-center justify-center text-2xl shadow-lg" title="Deschide asistentul cmc" aria-label="Deschide asistentul cmc">
+        <span class="absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-40 ping-dot"></span>
+        <span id="cmcToggleIcon" class="relative z-10">💬</span>
+    </button>
+
+    <div id="cmcWindow" class="cmc-hidden fixed bottom-24 right-6 z-[70] w-[92vw] max-w-sm h-[70vh] max-h-[560px] flex flex-col glass-panel rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden">
+        <!-- Header -->
+        <div class="flex items-center justify-between gap-3 px-4 py-3 bg-gradient-to-r from-sky-500 to-emerald-500 text-white shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-lg">🤖</div>
+                <div>
+                    <div class="font-bold leading-tight">cmc</div>
+                    <div class="text-xs text-white/80 leading-tight flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-300 inline-block"></span> Asistent YO8AIU
+                    </div>
+                </div>
+            </div>
+            <button id="cmcCloseBtn" class="text-white/80 hover:text-white text-xl leading-none" title="Închide" aria-label="Închide">✕</button>
+        </div>
+
+        <!-- Mesaje -->
+        <div id="cmcMessages" class="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-slate-50/60 dark:bg-slate-900/40"></div>
+
+        <!-- Input -->
+        <form id="cmcForm" class="shrink-0 border-t border-slate-200 dark:border-white/10 p-3 flex items-center gap-2 bg-white/70 dark:bg-slate-900/60">
+            <input type="text" id="cmcInput" autocomplete="off" placeholder="Scrie un mesaj către cmc..." class="flex-1 bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-slate-600 rounded-full px-4 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-sky-500 transition-colors">
+            <button type="submit" id="cmcSendBtn" class="w-10 h-10 shrink-0 rounded-full bg-gradient-to-br from-sky-500 to-emerald-500 text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shadow-md" title="Trimite" aria-label="Trimite">➤</button>
+        </form>
+    </div>
+
     <script>
         // --- 0. DARK/LIGHT MODE ---
         const themeToggleBtns = [document.getElementById('themeToggleBtn'), document.getElementById('themeToggleBtnMobile')];
@@ -477,13 +751,26 @@
             });
         });
 
+        // --- 0.1 AOS (Animate On Scroll) ---
+        if (window.AOS) {
+            AOS.init({
+                duration: 700,
+                easing: 'ease-out-cubic',
+                once: true,
+                offset: 60,
+                anchorPlacement: 'top-bottom'
+            });
+        }
+
         // Baze de date incarcate in memorie
         let globalPostsData = [];
         let globalHistoryData = [];
         let globalProjectsData = [];
         let globalMeshtasticData = [];
+        let globalAboutData = null; // documentul unic "Despre Mine" (about/main), nu o lista
         
         let quillEditor = null;
+        let aboutQuillEditor = null; // instanta Quill separata, dedicata modalului "Despre Mine"
         let editingPostId = null;
         let editingCollection = 'posts';
         
@@ -520,6 +807,10 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
             if (hash === '#despre' && !chartInstance) initChart();
+
+            // Refacem calculul AOS, altfel elementele din pagina nou-activata
+            // (fost display:none) raman cu opacity 0.
+            if (window.AOS) setTimeout(() => AOS.refresh(), 60);
         }
 
         window.addEventListener('hashchange', navigate);
@@ -528,6 +819,54 @@
         // --- 2. LOGICA UI PANOU ADMIN ---
         document.getElementById('currentYear').textContent = new Date().getFullYear();
         document.getElementById('mobileMenuBtn').addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
+
+        // --- 2.1 HERO: EFECT TYPING + GLITCH PE "YO8AIU" ---
+        function playHeroIntro() {
+            const callsignEl = document.getElementById('heroCallsign');
+            const typedEl = document.getElementById('heroCallsignTyped');
+            const cursorEl = document.getElementById('heroCursor');
+            const subtitleEl = document.getElementById('heroSubtitle');
+            const ctaEl = document.getElementById('heroCta');
+            if (!callsignEl || !typedEl) return;
+
+            const fullText = 'YO8AIU';
+            let i = 0;
+
+            function typeNext() {
+                if (i <= fullText.length) {
+                    typedEl.textContent = fullText.slice(0, i);
+                    i++;
+                    setTimeout(typeNext, 130);
+                } else {
+                    // Odata scris complet, adaugam un scurt puseu de glitch
+                    // ca accent tehnologic/radio, apoi il oprim.
+                    callsignEl.classList.add('is-glitching');
+                    setTimeout(() => {
+                        callsignEl.classList.remove('is-glitching');
+                        if (cursorEl) cursorEl.style.opacity = '0.6';
+                    }, 650);
+
+                    if (subtitleEl) {
+                        subtitleEl.style.transition = 'opacity 0.6s ease';
+                        subtitleEl.style.opacity = '1';
+                    }
+                    if (ctaEl) {
+                        ctaEl.style.transition = 'opacity 0.6s ease 0.2s';
+                        ctaEl.style.opacity = '1';
+                    }
+                }
+            }
+            setTimeout(typeNext, 300);
+
+            // Din cand in cand, un mic glitch spontan pentru a mentine tema tehnica vie.
+            setInterval(() => {
+                if (document.getElementById('acasa')?.classList.contains('active')) {
+                    callsignEl.classList.add('is-glitching');
+                    setTimeout(() => callsignEl.classList.remove('is-glitching'), 220);
+                }
+            }, 6000);
+        }
+        window.addEventListener('DOMContentLoaded', playHeroIntro);
 
         document.getElementById('postCollection').addEventListener('change', function(e) {
             const historyDateInput = document.getElementById('historyDateInput');
@@ -550,35 +889,179 @@
             }
         });
 
-        // --- 3. ANIMAȚIE BACKGROUND ---
+        // --- 3. ANIMAȚIE BACKGROUND (valuri oceanice wireframe + paralaxă + zgomot) ---
         const canvas = document.getElementById('hero-canvas');
         const ctx = canvas.getContext('2d');
-        let width, height, waves = [];
-        function resizeCanvas() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
-        window.addEventListener('resize', resizeCanvas); resizeCanvas();
+        let width, height;
+        function resizeCanvas() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; buildOceanLayers(); }
+        window.addEventListener('resize', resizeCanvas);
 
-        class Wave {
-            constructor() { this.reset(); }
-            reset() {
-                this.x = width / 2; this.y = height / 2; this.radius = Math.random() * 50;
-                this.speed = 0.3 + Math.random() * 1; this.opacity = 1; this.maxRadius = Math.max(width, height) * 1.2;
-            }
-            update() {
-                this.radius += this.speed; this.opacity = 1 - (this.radius / this.maxRadius);
-                if (this.opacity <= 0) this.reset();
-            }
-            draw() {
-                ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                const isDark = document.documentElement.classList.contains('dark');
-                ctx.strokeStyle = isDark ? `rgba(56, 189, 248, ${this.opacity * 0.15})` : `rgba(14, 165, 233, ${this.opacity * 0.10})`;
-                ctx.lineWidth = 1.5; ctx.stroke();
+        // Urmarim pozitia mouse-ului pentru un efect subtil de paralaxa
+        // pe intreaga scena de valuri (fara sa afecteze restul site-ului).
+        let mouseX = 0, mouseY = 0;
+        let parallaxX = 0, parallaxY = 0;
+        window.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
+
+        // "Ocean Wireframe": mai multe straturi de linii sinusoidale suprapuse,
+        // fiecare cu propria adancime (z), viteza si amplitudine - simuleaza
+        // un grid de valuri vazut din lateral, in stil wireframe.
+        const OCEAN_LAYER_COUNT = 6;
+        const OCEAN_LINES_PER_LAYER = 5;
+        let oceanLayers = [];
+
+        function buildOceanLayers() {
+            oceanLayers = [];
+            for (let l = 0; l < OCEAN_LAYER_COUNT; l++) {
+                const depth = l / (OCEAN_LAYER_COUNT - 1); // 0 = cel mai aproape, 1 = cel mai indepartat
+                const lines = [];
+                for (let i = 0; i < OCEAN_LINES_PER_LAYER; i++) {
+                    lines.push({
+                        baseY: height * (0.32 + depth * 0.11) + i * (18 + depth * 10),
+                        amplitude: (26 - depth * 14) * (1 - i * 0.08),
+                        wavelength: 260 + depth * 140 + i * 18,
+                        speed: (0.35 + depth * 0.25) * (i % 2 === 0 ? 1 : -0.85),
+                        phase: Math.random() * Math.PI * 2
+                    });
+                }
+                oceanLayers.push({ depth, lines });
             }
         }
-        for (let i = 0; i < 6; i++) setTimeout(() => waves.push(new Wave()), i * 1500);
-        function animateCanvas() {
-            ctx.clearRect(0, 0, width, height); waves.forEach(w => { w.update(); w.draw(); }); requestAnimationFrame(animateCanvas);
+        buildOceanLayers();
+
+        function drawOcean(t) {
+            const isDark = document.documentElement.classList.contains('dark');
+            oceanLayers.forEach(layer => {
+                // Straturile mai indepartate (depth mare) se misca mai putin cu parallaxa
+                // si sunt mai transparente, ca sa dea senzatie reala de adancime.
+                const layerParX = parallaxX * (1 - layer.depth) * 0.6;
+                const layerParY = parallaxY * (1 - layer.depth) * 0.6;
+                const baseOpacity = (isDark ? 0.16 : 0.10) * (1 - layer.depth * 0.55);
+
+                layer.lines.forEach((line, idx) => {
+                    ctx.beginPath();
+                    const step = 6;
+                    for (let x = -step; x <= width + step; x += step) {
+                        const y = line.baseY + layerParY
+                            + Math.sin((x / line.wavelength) + t * 0.00035 * line.speed + line.phase) * line.amplitude;
+                        if (x === -step) ctx.moveTo(x + layerParX, y);
+                        else ctx.lineTo(x + layerParX, y);
+                    }
+                    const fade = 1 - idx / (OCEAN_LINES_PER_LAYER * 1.4);
+                    ctx.strokeStyle = isDark
+                        ? `rgba(56, 189, 248, ${baseOpacity * fade})`
+                        : `rgba(14, 165, 233, ${baseOpacity * fade})`;
+                    ctx.lineWidth = 1.1;
+                    ctx.stroke();
+                });
+            });
+        }
+
+        // Marca subtila "yo8aiu.ro" care pluteste usor odata cu paralaxa,
+        // asezata printre straturile de valuri, la opacitate foarte joasa.
+        function drawCallsignWatermark(t) {
+            const isDark = document.documentElement.classList.contains('dark');
+            const floatY = Math.sin(t * 0.0004) * 10;
+            ctx.save();
+            ctx.font = `600 ${Math.min(120, Math.max(42, width * 0.06))}px Segoe UI, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = isDark ? 'rgba(148, 163, 184, 0.055)' : 'rgba(51, 65, 85, 0.045)';
+            ctx.fillText('yo8aiu.ro', width / 2 + parallaxX * 0.3, height * 0.42 + floatY + parallaxY * 0.3);
+            ctx.restore();
+        }
+
+        // Particule fine de "zgomot radio" (white noise), opacitate foarte mica,
+        // pur decorative - nu interactioneaza cu restul UI-ului.
+        const NOISE_COUNT = 70;
+        let noiseParticles = [];
+        function seedNoise() {
+            noiseParticles = Array.from({ length: NOISE_COUNT }, () => ({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                r: Math.random() * 1.1 + 0.2,
+                baseAlpha: Math.random() * 0.5 + 0.15,
+                flickerSpeed: Math.random() * 0.05 + 0.01,
+                phase: Math.random() * Math.PI * 2
+            }));
+        }
+        window.addEventListener('resize', seedNoise);
+
+        function drawNoise(t) {
+            const isDark = document.documentElement.classList.contains('dark');
+            noiseParticles.forEach(p => {
+                const flicker = Math.sin(t * p.flickerSpeed + p.phase) * 0.5 + 0.5;
+                const alpha = p.baseAlpha * flicker * (isDark ? 0.05 : 0.035); // foarte discret
+                ctx.fillStyle = isDark ? `rgba(226,232,240,${alpha})` : `rgba(51,65,85,${alpha})`;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        // Initializare initiala (resizeCanvas o cheama din nou la resize,
+        // dar la primul load trebuie apelata manual o singura data).
+        resizeCanvas();
+        seedNoise();
+
+        function animateCanvas(ts) {
+            // Paralaxa lina catre pozitia mouse-ului (raportata la centrul ecranului)
+            const targetX = (mouseX - width / 2) * 0.03;
+            const targetY = (mouseY - height / 2) * 0.03;
+            parallaxX += (targetX - parallaxX) * 0.04;
+            parallaxY += (targetY - parallaxY) * 0.04;
+
+            ctx.clearRect(0, 0, width, height);
+            drawNoise(ts || 0);
+            drawOcean(ts || 0);
+            drawCallsignWatermark(ts || 0);
+            requestAnimationFrame(animateCanvas);
         }
         animateCanvas();
+
+
+        // --- 3.1 UMPLERE PROGRESIVA TIMELINE (Intersection Observer) ---
+        // Bara verticala #historyTimelineFill se "umple" pe masura ce
+        // utilizatorul parcurge cu scroll containerul #historyTimeline.
+        function updateTimelineFill() {
+            const wrap = document.getElementById('historyTimeline');
+            const fill = document.getElementById('historyTimelineFill');
+            if (!wrap || !fill) return;
+
+            const rect = wrap.getBoundingClientRect();
+            const viewportH = window.innerHeight || document.documentElement.clientHeight;
+
+            // Cat de mult a "intrat" containerul in partea vizibila a ecranului.
+            const visibleTop = Math.min(Math.max(viewportH * 0.85 - rect.top, 0), rect.height);
+            const progress = rect.height > 0 ? (visibleTop / rect.height) : 0;
+            fill.style.height = `${Math.min(Math.max(progress, 0), 1) * 100}%`;
+        }
+
+        let timelineScrollBound = false;
+        function bindTimelineScrollFill() {
+            if (timelineScrollBound) { updateTimelineFill(); return; }
+            timelineScrollBound = true;
+            window.addEventListener('scroll', updateTimelineFill, { passive: true });
+            window.addEventListener('resize', updateTimelineFill);
+            updateTimelineFill();
+        }
+
+        // --- 3.2 SCROLL REVEAL SUPLIMENTAR (Intersection Observer) ---
+        // Foloseste clasele .reveal-init / .reveal-visible pentru elemente
+        // care nu trec prin AOS (ex: continut generat dinamic din Firebase).
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('reveal-visible');
+                    revealObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
+
+        function observeReveal(el) {
+            if (!el || el.classList.contains('reveal-visible')) return;
+            el.classList.add('reveal-init');
+            revealObserver.observe(el);
+        }
 
         function initChart() {
             const ctxChart = document.getElementById('contactsChart').getContext('2d');
@@ -622,7 +1105,8 @@
         const googleLoginBtn = document.getElementById('googleLoginBtn');
 
         // FUNCTIE MAGICA 1: Urca poze alese in editor direct pe server
-        function selectLocalMediaForEditor(type) {
+        function selectLocalMediaForEditor(type, targetEditor) {
+            const editorInstance = targetEditor || quillEditor;
             if(!storage) return alert("Sistemul de fișiere nu e gata. Așteptați câteva secunde.");
             
             const input = document.createElement('input');
@@ -635,7 +1119,10 @@
                 const file = input.files[0];
                 if (!file) return;
 
-                const btn = document.getElementById('submitBtn');
+                // Butonul de submit relevant difera intre editorul principal si cel de "Despre Mine".
+                const btn = editorInstance === aboutQuillEditor
+                    ? document.getElementById('aboutSubmitBtn')
+                    : document.getElementById('submitBtn');
                 const originalText = btn.textContent;
                 btn.disabled = true;
                 
@@ -648,9 +1135,9 @@ const data = await res.json();
 if(data.error) throw new Error(data.error);
 const downloadURL = data.url;
 
-const range = quillEditor.getSelection(true);
-quillEditor.insertEmbed(range.index, type, downloadURL);
-quillEditor.setSelection(range.index + 1);
+const range = editorInstance.getSelection(true);
+editorInstance.insertEmbed(range.index, type, downloadURL);
+editorInstance.setSelection(range.index + 1);
 btn.disabled = false;
 btn.textContent = originalText;
 
@@ -664,6 +1151,10 @@ btn.textContent = originalText;
 
         // FUNCTIE MAGICA 2: Smecherie pt butonul video (Sa aleaga: YouTube sau PC)
         function handleVideoClick() {
+            // "this" este instanta Quill care a declansat handler-ul (quillEditor sau aboutQuillEditor),
+            // conform conventiei standard Quill pentru handler-ele custom din toolbar.
+            const editorInstance = (this && typeof this.getSelection === 'function') ? this : quillEditor;
+
             const url = prompt('Dacă aveți un link de YouTube/Vimeo, dați Paste aici.\n\nSAU lăsați căsuța complet GOALĂ și apăsați OK pentru a alege un video din calculator:');
             
             if (url) {
@@ -673,12 +1164,12 @@ btn.textContent = originalText;
                 if (ytMatch && ytMatch[2].length === 11) {
                     finalUrl = 'https://www.youtube.com/embed/' + ytMatch[2];
                 }
-                const range = quillEditor.getSelection(true);
-                quillEditor.insertEmbed(range.index, 'video', finalUrl);
-                quillEditor.setSelection(range.index + 1);
+                const range = editorInstance.getSelection(true);
+                editorInstance.insertEmbed(range.index, 'video', finalUrl);
+                editorInstance.setSelection(range.index + 1);
             } else if (url === "") {
                 // A lasat gol. Deschidem folderul din PC!
-                selectLocalMediaForEditor('video');
+                selectLocalMediaForEditor('video', editorInstance);
             }
         }
 
@@ -694,10 +1185,13 @@ btn.textContent = originalText;
                         blotFormatter: {},
                         toolbar: {
                             container: [
-                                [{ 'header': [2, 3, false] }],
+                                [{ 'header': [2, 3, false] }, { 'font': [] }, { 'size': ['small', false, 'large', 'huge'] }],
                                 ['bold', 'italic', 'underline', 'strike'],
-                                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                                [{ 'color': [] }, { 'background': [] }],
+                                [{ 'script': 'sub'}, { 'script': 'super' }],
+                                [{ 'list': 'ordered'}, { 'list': 'bullet' }, { 'indent': '-1'}, { 'indent': '+1' }],
                                 [{ 'align': [] }],
+                                ['blockquote', 'code-block'],
                                 ['link', 'image', 'video'],
                                 ['clean']
                             ],
@@ -711,6 +1205,79 @@ btn.textContent = originalText;
                 });
             }
         }
+
+        // =========================================================================
+        // 📝 SECȚIUNEA "DESPRE MINE" (document unic editabil, ca la Meshtastic/Proiecte,
+        // dar fara lista de carduri - un singur continut, stocat in about/main)
+        // =========================================================================
+        function renderAbout(docData) {
+            globalAboutData = docData;
+            const skeletonEl = document.getElementById('aboutSkeleton');
+            const contentEl = document.getElementById('aboutContent');
+            const editBtn = document.getElementById('editAboutBtn');
+
+            const fallbackHtml = `
+                <p>Salut! Sunt operatorul stației de radioamator <strong>YO8AIU</strong>. Pasiunea mea pentru radiocomunicații a început cu mulți ani în urmă, fiind fascinat de capacitatea de a comunica dincolo de granițe folosind doar echipamente construite și configurate cu atenție.</p>
+                <p>Sunt activ preponderent în benzile de unde scurte (HF), atât în moduri analogice (SSB, CW) cât și digitale (FT8, DMR). Particip la competiții și experimentez constant cu construcția de antene noi.</p>`;
+
+            contentEl.innerHTML = (docData && docData.content) ? docData.content : fallbackHtml;
+
+            skeletonEl.classList.add('hidden');
+            contentEl.classList.remove('hidden');
+            observeReveal(contentEl);
+
+            if (editBtn) editBtn.classList.toggle('hidden', !isAdmin);
+        }
+
+        function initAboutQuill() {
+            if (!aboutQuillEditor) {
+                const BlotFormatter = QuillBlotFormatter.default || QuillBlotFormatter;
+                Quill.register('modules/blotFormatter', BlotFormatter);
+
+                aboutQuillEditor = new Quill('#aboutEditorContainer', {
+                    theme: 'snow',
+                    placeholder: 'Scrie despre tine, stația ta, echipamente...',
+                    modules: {
+                        blotFormatter: {},
+                        toolbar: {
+                            container: [
+                                [{ 'header': [2, 3, false] }, { 'font': [] }, { 'size': ['small', false, 'large', 'huge'] }],
+                                ['bold', 'italic', 'underline', 'strike'],
+                                [{ 'color': [] }, { 'background': [] }],
+                                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                                [{ 'align': [] }],
+                                ['blockquote', 'code-block'],
+                                ['link', 'image', 'video'],
+                                ['clean']
+                            ],
+                            handlers: {
+                                image: () => selectLocalMediaForEditor('image', 'about'),
+                                video: handleVideoClick
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        window.editeazaAbout = function(event) {
+            if (event) { event.preventDefault(); event.stopPropagation(); }
+            if (!isAdmin) return;
+
+            initAboutQuill();
+            aboutQuillEditor.root.innerHTML = (globalAboutData && globalAboutData.content)
+                ? globalAboutData.content
+                : document.getElementById('aboutContent').innerHTML;
+
+            document.getElementById('aboutEditModal').classList.remove('hidden');
+        };
+
+        document.getElementById('closeAboutModalBtn').addEventListener('click', () => {
+            document.getElementById('aboutEditModal').classList.add('hidden');
+        });
+        document.getElementById('aboutCancelBtn').addEventListener('click', () => {
+            document.getElementById('aboutEditModal').classList.add('hidden');
+        });
 
         function resetFormToCreate() {
             editingPostId = null;
@@ -790,6 +1357,7 @@ btn.textContent = originalText;
                     renderGridCollection(globalProjectsData, 'projects', 'projectsGrid', 'loadingProjects');
                     renderGridCollection(globalMeshtasticData, 'meshtastic', 'meshtasticGrid', 'loadingMeshtastic');
                     renderHistory(globalHistoryData);
+                    renderAbout(globalAboutData);
                 }
             } else {
                 adminModal.classList.remove('hidden');
@@ -816,6 +1384,7 @@ btn.textContent = originalText;
             renderGridCollection(globalProjectsData, 'projects', 'projectsGrid', 'loadingProjects');
             renderGridCollection(globalMeshtasticData, 'meshtastic', 'meshtasticGrid', 'loadingMeshtastic');
             renderHistory(globalHistoryData);
+            renderAbout(globalAboutData);
         }
 
         googleLoginBtn.addEventListener('click', async () => {
@@ -894,8 +1463,17 @@ btn.textContent = originalText;
             container.innerHTML = '';
             globalHistoryData = historyList;
 
+            // container.innerHTML = '' sterge si bara de umplere #historyTimelineFill
+            // (care traieste in acelasi container). O recream imediat, altfel
+            // efectul de scroll-fill de pe timeline dispare la fiecare re-randare.
+            if (!document.getElementById('historyTimelineFill')) {
+                const fillBar = document.createElement('div');
+                fillBar.id = 'historyTimelineFill';
+                container.appendChild(fillBar);
+            }
+
             if (historyList.length === 0) {
-                container.innerHTML = '<p class="text-slate-500 dark:text-gray-400 text-center">Istoricul este în curs de actualizare.</p>';
+                container.insertAdjacentHTML('beforeend', '<p class="text-slate-500 dark:text-gray-400 text-center">Istoricul este în curs de actualizare.</p>');
                 return;
             }
 
@@ -921,15 +1499,20 @@ btn.textContent = originalText;
 
                 el.innerHTML = `
                     <span class="absolute -left-11 top-1 w-6 h-6 rounded-full border-4 border-slate-50 dark:border-[#0f172a] ${dotClass}"></span>
-                    <div class="glass-panel p-6 rounded-xl hover:-translate-y-1 transition-transform duration-300 border border-slate-200 dark:border-white/10 relative overflow-hidden">
+                    <div class="glass-panel glow-hover p-6 rounded-xl hover:-translate-y-1 transition-transform duration-300 border border-slate-200 dark:border-white/10 relative overflow-hidden">
                         ${adminButtonsHtml}
                         <h4 class="text-2xl font-bold text-slate-900 dark:text-white mb-1 pr-16">${docData.title}</h4>
                         <span class="${textClass} text-sm font-bold uppercase tracking-wider block mb-4">${docData.historyDate || 'Eveniment'}</span>
                         <div class="prose prose-slate dark:prose-invert max-w-none prose-img:rounded-xl prose-video:rounded-xl">${docData.content}</div>
                     </div>`;
+                observeReveal(el);
                 container.appendChild(el);
             });
             if(isAdmin) initDragAndDrop('history', 'historyTimeline');
+
+            // Reactivam bara de umplere a timeline-ului si observer-ul de reveal
+            // acum ca elementele exista in DOM.
+            bindTimelineScrollFill();
         }
 
         // ==========================================
@@ -1004,7 +1587,7 @@ btn.textContent = originalText;
                 const id = item.id;
                 
                 const el = document.createElement('div');
-                el.className = 'glass-panel rounded-xl overflow-hidden shadow-lg flex flex-col h-full border border-slate-200 dark:border-white/5 relative group';
+                el.className = 'glass-panel glow-hover rounded-xl overflow-hidden shadow-lg flex flex-col h-full border border-slate-200 dark:border-white/5 relative group';
                 
                 let adminButtonsHtml = isAdmin ? `
                     <div class="absolute top-3 right-3 z-30 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1031,6 +1614,7 @@ btn.textContent = originalText;
                             </div>
                         </div>
                     </a>`;
+                observeReveal(el);
                 grid.appendChild(el);
             });
 
@@ -1089,6 +1673,150 @@ btn.textContent = originalText;
                     ${docData.content}
                 </div>`;
         }
+
+        // =========================================================================
+        // 🤖 CHATBOT AI "cmc"
+        // =========================================================================
+        // IMPORTANT: acest frontend NU contine si NU trebuie sa contina niciodata
+        // o cheie API de la OpenAI/Gemini. Toate mesajele sunt trimise catre un
+        // Firebase Cloud Function ("cmcChat") care detine cheia in siguranta pe
+        // server si face apelul real catre AI. Vezi instructiunile + codul
+        // Cloud Function furnizate separat (index.js) pentru configurare completa.
+        const CMC_ENDPOINT = 'https://REGIUNE-PROIECTUL_TAU.cloudfunctions.net/cmcChat';
+        // Exemplu real (dupa deploy): 
+        // const CMC_ENDPOINT = 'https://europe-west1-yo8aiu-website.cloudfunctions.net/cmcChat';
+
+        let cmcOpen = false;
+        let cmcHistory = []; // { role: 'user' | 'assistant', content: string }
+        let cmcFirstOpen = true;
+        let cmcIsSending = false;
+
+        const cmcToggleBtn = document.getElementById('cmcToggleBtn');
+        const cmcToggleIcon = document.getElementById('cmcToggleIcon');
+        const cmcWindow = document.getElementById('cmcWindow');
+        const cmcCloseBtn = document.getElementById('cmcCloseBtn');
+        const cmcMessages = document.getElementById('cmcMessages');
+        const cmcForm = document.getElementById('cmcForm');
+        const cmcInput = document.getElementById('cmcInput');
+        const cmcSendBtn = document.getElementById('cmcSendBtn');
+
+        function cmcScrollToBottom() {
+            cmcMessages.scrollTop = cmcMessages.scrollHeight;
+        }
+
+        function cmcAppendMessage(role, text) {
+            const wrapper = document.createElement('div');
+            wrapper.className = `cmc-bubble flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+
+            const bubble = document.createElement('div');
+            bubble.className = role === 'user'
+                ? 'max-w-[80%] bg-gradient-to-br from-sky-500 to-emerald-500 text-white text-sm rounded-2xl rounded-br-sm px-4 py-2 shadow-md'
+                : 'max-w-[80%] bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm rounded-2xl rounded-bl-sm px-4 py-2 shadow-md border border-slate-200 dark:border-white/10';
+            bubble.textContent = text;
+
+            wrapper.appendChild(bubble);
+            cmcMessages.appendChild(wrapper);
+            cmcScrollToBottom();
+        }
+
+        function cmcShowTyping() {
+            const wrapper = document.createElement('div');
+            wrapper.id = 'cmcTypingIndicator';
+            wrapper.className = 'cmc-bubble flex justify-start';
+            wrapper.innerHTML = `
+                <div class="max-w-[60%] bg-white dark:bg-slate-800 rounded-2xl rounded-bl-sm px-4 py-3 shadow-md border border-slate-200 dark:border-white/10 flex items-center gap-1">
+                    <span class="cmc-typing-dot w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500 inline-block"></span>
+                    <span class="cmc-typing-dot w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500 inline-block"></span>
+                    <span class="cmc-typing-dot w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500 inline-block"></span>
+                </div>`;
+            cmcMessages.appendChild(wrapper);
+            cmcScrollToBottom();
+        }
+
+        function cmcHideTyping() {
+            const el = document.getElementById('cmcTypingIndicator');
+            if (el) el.remove();
+        }
+
+        function cmcOpenWindow() {
+            cmcOpen = true;
+            cmcWindow.classList.remove('cmc-hidden');
+            cmcWindow.classList.add('cmc-visible');
+            cmcToggleIcon.textContent = '✕';
+            cmcToggleBtn.title = 'Închide asistentul cmc';
+
+            if (cmcFirstOpen) {
+                cmcFirstOpen = false;
+                cmcAppendMessage('assistant', 'Hei, eu sunt cmc! Cu ce informații te pot ajuta despre YO8AIU?');
+            }
+            setTimeout(() => cmcInput?.focus(), 150);
+        }
+
+        function cmcCloseWindow() {
+            cmcOpen = false;
+            cmcWindow.classList.remove('cmc-visible');
+            cmcWindow.classList.add('cmc-hidden');
+            cmcToggleIcon.textContent = '💬';
+            cmcToggleBtn.title = 'Deschide asistentul cmc';
+        }
+
+        cmcToggleBtn?.addEventListener('click', () => { cmcOpen ? cmcCloseWindow() : cmcOpenWindow(); });
+        cmcCloseBtn?.addEventListener('click', cmcCloseWindow);
+
+        async function cmcSendMessage(userText) {
+            cmcAppendMessage('user', userText);
+            cmcHistory.push({ role: 'user', content: userText });
+
+            cmcIsSending = true;
+            cmcSendBtn.disabled = true;
+            cmcInput.disabled = true;
+            cmcShowTyping();
+
+            try {
+                const response = await fetch(CMC_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: userText,
+                        // Trimitem un istoric scurt (ultimele cateva mesaje) pentru context,
+                        // fara sa umflam payload-ul.
+                        history: cmcHistory.slice(-8, -1)
+                    })
+                });
+
+                if (!response.ok) throw new Error(`Server a răspuns cu status ${response.status}`);
+
+                const data = await response.json();
+                const reply = (data && data.reply) ? data.reply.trim() : null;
+
+                cmcHideTyping();
+
+                if (reply) {
+                    cmcAppendMessage('assistant', reply);
+                    cmcHistory.push({ role: 'assistant', content: reply });
+                } else {
+                    cmcAppendMessage('assistant', 'Îmi pare rău, nu am primit un răspuns valid. Poți reformula întrebarea?');
+                }
+            } catch (err) {
+                console.error('Eroare cmc chat:', err);
+                cmcHideTyping();
+                cmcAppendMessage('assistant', 'Momentan nu mă pot conecta la server. Te rog încearcă din nou puțin mai târziu, sau scrie-mi direct pe contact@yo8aiu.ro.');
+            } finally {
+                cmcIsSending = false;
+                cmcSendBtn.disabled = false;
+                cmcInput.disabled = false;
+                cmcInput.focus();
+            }
+        }
+
+        cmcForm?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (cmcIsSending) return;
+            const text = cmcInput.value.trim();
+            if (!text) return;
+            cmcInput.value = '';
+            cmcSendMessage(text);
+        });
 
         // =========================================================================
         // ✅ CONEXIUNEA FIREBASE
@@ -1162,6 +1890,32 @@ finalThumbnailUrl = data.url;
                     } catch(err) { alert('Eroare Bază de Date: ' + err.message); } 
                     finally { btn.disabled = false; btn.textContent = originalText; }
                 });
+
+                // Submit separat pentru "Despre Mine" - scrie mereu in acelasi
+                // document cu ID fix (about/main), nu creeaza intrari noi.
+                document.getElementById('aboutEditForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    if (!isAdmin || !auth.currentUser || !aboutQuillEditor) return;
+
+                    const btn = document.getElementById('aboutSubmitBtn');
+                    const originalText = btn.textContent;
+                    btn.disabled = true;
+                    btn.textContent = 'Se salvează... 💾';
+
+                    try {
+                        await window.setDoc(
+                            window.doc(db, 'about', 'main'),
+                            { content: aboutQuillEditor.root.innerHTML, updatedAt: window.serverTimestamp() },
+                            { merge: true }
+                        );
+                        document.getElementById('aboutEditModal').classList.add('hidden');
+                    } catch (err) {
+                        alert('Eroare Bază de Date: ' + err.message);
+                    } finally {
+                        btn.disabled = false;
+                        btn.textContent = originalText;
+                    }
+                });
                 
                 await window.signInAnonymously(auth);
 
@@ -1172,6 +1926,15 @@ finalThumbnailUrl = data.url;
                                 callback(snapshot.docs.map(doc => ({ id: doc.id, data: { ...doc.data(), createdAt: doc.data().createdAt?.toMillis() || Date.now() }, rawCreatedAt: doc.data().createdAt })));
                             });
                         };
+
+                        // Documentul unic "about/main" foloseste onSnapshot direct pe doc(),
+                        // nu pe collection() + query - e un singur continut, nu o lista.
+                        window.onSnapshot(window.doc(db, 'about', 'main'), (docSnap) => {
+                            renderAbout(docSnap.exists() ? docSnap.data() : null);
+                        }, (err) => {
+                            console.error('Eroare la citirea about/main:', err);
+                            renderAbout(null); // afiseaza fallback-ul in loc sa ramana blocat pe skeleton
+                        });
 
                         setupSnapshot('posts', (data) => { renderGridCollection(data, 'posts', 'galleryGrid', 'loadingGallery'); if(window.location.hash.startsWith('#postare-')) navigate(); });
                         setupSnapshot('projects', (data) => { renderGridCollection(data, 'projects', 'projectsGrid', 'loadingProjects'); });
