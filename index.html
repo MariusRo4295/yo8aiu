@@ -4,32 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YO8AIU | Stație Radioamator</title>
+    <link rel="canonical" href="https://yo8aiu.ro/">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     
-    <!-- Tailwind CSS + Typography -->
-    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class'
-        }
-    </script>
-    
-    <!-- Quill.js (Editor Text) -->
-    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    
-    <!-- Modulul de Redimensionare si Aliniere pentru Quill -->
-    <script src="https://cdn.jsdelivr.net/npm/quill-blot-formatter@1.0.5/dist/quill-blot-formatter.min.js"></script>
+    <!-- Fonturi (self-hinted prin Google Fonts, cu preconnect pt latenta minima) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js (folosit doar in sectiunea "Despre Mine", dar e usor - il pastram simplu, cu defer) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 
-    <!-- Sortable.js (Pentru Drag & Drop) -->
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-
-    <!-- AOS - Animate On Scroll -->
+    <!-- AOS - Animate On Scroll (fara defer: AOS.init() ruleaza sincron, imediat, mai jos in pagina) -->
     <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
-    
+
+    <!--
+        Quill.js, blot-formatter si Sortable.js NU se mai incarca aici:
+        sunt folosite EXCLUSIV de panoul de admin, deci se incarca dinamic
+        (vezi loadAdminLibs() mai jos) abia cand se deschide login-ul de admin,
+        nu pentru fiecare vizitator obisnuit.
+    -->
+
     <!-- Firebase Core & Auth & Firestore & Storage -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -69,7 +65,7 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             overflow-x: hidden;
             min-height: 100vh;
             display: flex;
@@ -221,6 +217,44 @@
 
         main { flex-grow: 1; display: flex; flex-direction: column; }
 
+        /* Font pentru titluri - contrast tehnic fata de textul curent (Inter) */
+        h1, h2, h3, h4, .font-display { font-family: 'Space Grotesk', 'Segoe UI', sans-serif; letter-spacing: -0.01em; }
+
+        /* ==========================================
+           LOGO NAVBAR: ANTENA CU UNDE DE SEMNAL ANIMATE
+           ========================================== */
+        .nav-logo-wave {
+            transform-origin: 32px 46px;
+            opacity: 0;
+            animation: navLogoPulse 2.6s ease-out infinite;
+        }
+        .nav-logo-wave-1 { animation-delay: 0s; }
+        .nav-logo-wave-2 { animation-delay: 0.55s; }
+        @keyframes navLogoPulse {
+            0%   { opacity: 0;   transform: scale(0.72); }
+            25%  { opacity: 0.9; }
+            100% { opacity: 0;   transform: scale(1.18); }
+        }
+        .nav-logo-dot {
+            animation: navLogoDotPulse 2.6s ease-in-out infinite;
+            filter: drop-shadow(0 0 3px rgba(56, 189, 248, 0.7));
+        }
+        @keyframes navLogoDotPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50%      { opacity: 0.45; transform: scale(0.85); }
+        }
+        .nav-logo-text {
+            background-size: 200% auto;
+            animation: navLogoShimmer 7s linear infinite;
+        }
+        @keyframes navLogoShimmer {
+            0%   { background-position: 0% center; }
+            100% { background-position: 200% center; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .nav-logo-wave, .nav-logo-dot, .nav-logo-text { animation: none; opacity: 0.85; }
+        }
+
         /* ==========================================
            HERO: GLITCH + TYPING PENTRU INDICATIV
            ========================================== */
@@ -355,6 +389,16 @@
             30% { transform: translateY(-4px); opacity: 1; }
         }
     </style>
+
+    <!--
+        Tailwind CSS precompilat static, incarcat DUPA stilurile custom de mai sus.
+        Important: cu specificitate egala (o singura clasa), castiga cel incarcat ultimul -
+        daca Tailwind ar fi incarcat inaintea blocului <style>, utilitati precum
+        "fixed"/"absolute" ar fi suprascrise de ex. de ".glass-panel { position: relative }"
+        de mai sus, pe orice element care combina ambele clase (asa cum s-a intamplat
+        cu nav-ul si fereastra chatbot-ului).
+    -->
+    <link rel="stylesheet" href="/css/tailwind.css">
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 antialiased">
 
@@ -364,8 +408,21 @@
     <nav class="fixed w-full z-50 glass-panel border-b border-black/5 dark:border-white/10 transition-colors duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
-                <a href="#acasa" class="flex-shrink-0 font-bold text-2xl tracking-wider bg-gradient-to-r from-sky-500 to-emerald-500 dark:from-sky-400 dark:to-emerald-400 bg-clip-text text-transparent">
-                    📻 YO8AIU
+                <a href="#acasa" class="flex items-center gap-2.5 flex-shrink-0" aria-label="YO8AIU - Acasă">
+                    <svg class="w-9 h-9 overflow-visible translate-y-[3px]" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+                        <defs>
+                            <linearGradient id="navLogoGrad" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" stop-color="#38bdf8"/>
+                                <stop offset="100%" stop-color="#10b981"/>
+                            </linearGradient>
+                        </defs>
+                        <path d="M32 46V30" stroke="url(#navLogoGrad)" stroke-width="3" stroke-linecap="round"/>
+                        <circle cx="32" cy="26" r="3.5" fill="url(#navLogoGrad)" class="nav-logo-dot"/>
+                        <path d="M22 22a14 14 0 0 1 20 0" stroke="url(#navLogoGrad)" stroke-width="2.5" fill="none" stroke-linecap="round" class="nav-logo-wave nav-logo-wave-1"/>
+                        <path d="M16 16a22 22 0 0 1 32 0" stroke="url(#navLogoGrad)" stroke-width="2.5" fill="none" stroke-linecap="round" class="nav-logo-wave nav-logo-wave-2"/>
+                        <path d="M20 46h24" stroke="url(#navLogoGrad)" stroke-width="3" stroke-linecap="round"/>
+                    </svg>
+                    <span class="font-display font-bold text-2xl tracking-wider nav-logo-text bg-gradient-to-r from-sky-500 via-blue-500 to-emerald-500 dark:from-sky-400 dark:via-blue-400 dark:to-emerald-400 bg-clip-text text-transparent">YO8AIU</span>
                 </a>
                 <div class="hidden lg:block">
                     <div class="ml-10 flex items-center space-x-4 xl:space-x-6">
@@ -426,6 +483,38 @@
                 <div class="text-slate-900 dark:text-white relative">
                     <div id="aboutEditorContainer"></div>
                 </div>
+
+                <div class="pt-2">
+                    <h4 class="text-sm font-bold text-slate-600 dark:text-gray-300 mb-3">🌍 Distribuția Contactelor pe Continente (%)</h4>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">Europa</label>
+                            <input type="number" id="continentEuropa" min="0" max="100" class="w-full bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-600 rounded-lg p-2 text-slate-900 dark:text-white focus:outline-none focus:border-sky-500 shadow-sm transition-colors">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">Asia</label>
+                            <input type="number" id="continentAsia" min="0" max="100" class="w-full bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-600 rounded-lg p-2 text-slate-900 dark:text-white focus:outline-none focus:border-sky-500 shadow-sm transition-colors">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">Am. Nord</label>
+                            <input type="number" id="continentAmNord" min="0" max="100" class="w-full bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-600 rounded-lg p-2 text-slate-900 dark:text-white focus:outline-none focus:border-sky-500 shadow-sm transition-colors">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">Am. Sud</label>
+                            <input type="number" id="continentAmSud" min="0" max="100" class="w-full bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-600 rounded-lg p-2 text-slate-900 dark:text-white focus:outline-none focus:border-sky-500 shadow-sm transition-colors">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">Africa</label>
+                            <input type="number" id="continentAfrica" min="0" max="100" class="w-full bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-600 rounded-lg p-2 text-slate-900 dark:text-white focus:outline-none focus:border-sky-500 shadow-sm transition-colors">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">Oceania</label>
+                            <input type="number" id="continentOceania" min="0" max="100" class="w-full bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-600 rounded-lg p-2 text-slate-900 dark:text-white focus:outline-none focus:border-sky-500 shadow-sm transition-colors">
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-400 dark:text-gray-500 mt-2">Valori procentuale estimative - nu trebuie să însumeze exact 100%.</p>
+                </div>
+
                 <div class="flex flex-col md:flex-row gap-4 mt-4">
                     <button type="submit" id="aboutSubmitBtn" class="flex-1 md:flex-none bg-gradient-to-r from-sky-500 to-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:shadow-lg dark:hover:shadow-[0_0_15px_rgba(56,189,248,0.5)] transition-all">Salvează Modificările</button>
                     <button type="button" id="aboutCancelBtn" class="flex-1 md:flex-none bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-white font-bold py-3 px-8 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-all">Anulează</button>
@@ -674,33 +763,71 @@
                                 <p class="text-sm text-slate-500 dark:text-gray-400">România</p>
                             </div>
                         </div>
+                        <a href="https://instagram.com/marius1ka" target="_blank" rel="noopener noreferrer" class="flex items-center gap-5 text-slate-700 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white transition-colors group">
+                            <div class="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-pink-500 dark:text-pink-400 group-hover:scale-110 transition-transform shadow-sm">
+                                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-lg">Instagram</h4>
+                                <p class="text-sm text-slate-500 dark:text-gray-400">@marius1ka</p>
+                            </div>
+                        </a>
                     </div>
 
                     <div class="glass-panel p-8 rounded-2xl shadow-xl border-t border-amber-500/30" data-aos="fade-left">
                         <form id="contactForm" class="space-y-5">
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-1">Nume / Indicativ</label>
-                                <input type="text" required class="w-full bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 transition-colors shadow-sm">
+                                <input type="text" id="contactName" required class="w-full bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 transition-colors shadow-sm">
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-1">Email</label>
+                                    <input type="email" id="contactEmail" class="w-full bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 transition-colors shadow-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-1">Telefon</label>
+                                    <input type="tel" id="contactPhone" class="w-full bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 transition-colors shadow-sm">
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-1">Mesaj</label>
-                                <textarea required rows="4" class="w-full bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 transition-colors shadow-sm"></textarea>
+                                <textarea id="contactMessageInput" required rows="4" class="w-full bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 transition-colors shadow-sm"></textarea>
                             </div>
-                            <button type="button" onclick="alert('Funcționalitate demonstrativă. Trimis cu succes!')" class="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white dark:text-slate-900 font-bold py-3 rounded-lg hover:shadow-[0_0_15px_rgba(245,158,11,0.4)] hover:scale-[1.02] transition-all">
+                            <button type="submit" id="contactSubmitBtn" class="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white dark:text-slate-900 font-bold py-3 rounded-lg hover:shadow-[0_0_15px_rgba(245,158,11,0.4)] hover:scale-[1.02] transition-all">
                                 Trimite Mesaj
                             </button>
+                            <p id="contactSuccessMsg" class="hidden text-sm text-emerald-600 dark:text-emerald-400 font-medium text-center">✅ Mesaj trimis. Îți răspund cât de curând posibil!</p>
                         </form>
                     </div>
+                </div>
+
+                <!-- PANOU ADMIN: Cereri de contact primite (vizibil doar pentru admin) -->
+                <div id="contactRequestsPanel" class="hidden mt-12" data-aos="fade-up">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">📬 Cereri de Contact <span id="contactUnreadBadge" class="hidden text-xs font-bold bg-red-500 text-white rounded-full px-2 py-0.5"></span></h3>
+                    </div>
+                    <div id="contactRequestsEmpty" class="hidden text-center text-slate-500 dark:text-gray-400 py-8 glass-panel rounded-2xl">Nicio cerere de contact momentan.</div>
+                    <div id="contactRequestsList" class="space-y-4"></div>
                 </div>
             </div>
         </div>
     </main>
 
-    <footer class="bg-white dark:bg-slate-950 py-6 text-center border-t border-slate-200 dark:border-white/5 mt-auto relative z-10 transition-colors duration-300">
-        <p class="text-slate-500 dark:text-slate-500 text-sm">
-            © <span id="currentYear"></span> Stația Radioamator YO8AIU. Toate drepturile rezervate. <br>
-            <span class="text-sky-600 dark:text-sky-500/50">73!</span>
-        </p>
+    <footer class="bg-white dark:bg-slate-950 py-8 text-center border-t border-slate-200 dark:border-white/5 mt-auto relative z-10 transition-colors duration-300">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col items-center gap-4">
+            <div class="flex items-center gap-5">
+                <a href="https://instagram.com/marius1ka" target="_blank" rel="noopener noreferrer" title="Instagram" aria-label="Instagram" class="text-slate-400 hover:scale-110 hover:text-transparent hover:bg-gradient-to-tr hover:from-amber-500 hover:via-pink-600 hover:to-purple-600 hover:bg-clip-text transition-all duration-300">
+                    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                </a>
+                <a href="mailto:contact@yo8aiu.ro" title="Email" aria-label="Email" class="text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 hover:scale-110 transition-all duration-300 text-xl">✉️</a>
+            </div>
+            <p class="text-slate-500 dark:text-slate-500 text-sm">
+                <span class="font-display font-bold bg-gradient-to-r from-sky-500 to-emerald-500 dark:from-sky-400 dark:to-emerald-400 bg-clip-text text-transparent">YO8AIU</span>
+                © <span id="currentYear"></span> · Toate drepturile rezervate
+            </p>
+            <p class="text-sky-600 dark:text-sky-400/60 text-xs font-medium tracking-[0.2em] uppercase">73 de pe undele scurte 📡</p>
+        </div>
     </footer>
 
     <!-- ==========================================
@@ -768,6 +895,9 @@
         let globalProjectsData = [];
         let globalMeshtasticData = [];
         let globalAboutData = null; // documentul unic "Despre Mine" (about/main), nu o lista
+
+        // Valori implicite pentru graficul de continente, folosite doar daca admin-ul nu a salvat inca propriile valori
+        const DEFAULT_CONTINENT_DATA = { europa: 65, asia: 15, americaNord: 10, americaSud: 5, africa: 3, oceania: 2 };
         
         let quillEditor = null;
         let aboutQuillEditor = null; // instanta Quill separata, dedicata modalului "Despre Mine"
@@ -778,6 +908,43 @@
         let sortableHistory = null;
         let sortableProjects = null;
         let sortableMeshtastic = null;
+
+        let contactUnsub = null; // functia de "unsubscribe" a listener-ului de cereri de contact (activ doar cat isAdmin===true)
+
+        // --- 0.2 INCARCARE LENESA A LIBRARIILOR EXCLUSIV DE ADMIN (Quill, blot-formatter, Sortable) ---
+        // Un vizitator obisnuit nu are nevoie de editorul de text sau de drag&drop,
+        // deci aceste fisiere (destul de grele) nu se mai incarca implicit din <head>.
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = src;
+                s.onload = resolve;
+                s.onerror = () => reject(new Error('Nu s-a putut incarca: ' + src));
+                document.head.appendChild(s);
+            });
+        }
+        function loadStyle(href) {
+            return new Promise((resolve, reject) => {
+                const l = document.createElement('link');
+                l.rel = 'stylesheet';
+                l.href = href;
+                l.onload = resolve;
+                l.onerror = () => reject(new Error('Nu s-a putut incarca: ' + href));
+                document.head.appendChild(l);
+            });
+        }
+        let adminLibsPromise = null;
+        function loadAdminLibs() {
+            if (!adminLibsPromise) {
+                adminLibsPromise = Promise.all([
+                    loadStyle('https://cdn.quilljs.com/1.3.6/quill.snow.css'),
+                    loadScript('https://cdn.quilljs.com/1.3.6/quill.min.js')
+                        .then(() => loadScript('https://cdn.jsdelivr.net/npm/quill-blot-formatter@1.0.5/dist/quill-blot-formatter.min.js')),
+                    loadScript('https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js')
+                ]);
+            }
+            return adminLibsPromise;
+        }
 
         // --- 1. ROUTER JAVASCRIPT ---
         const views = document.querySelectorAll('.page-view');
@@ -819,6 +986,11 @@
         // --- 2. LOGICA UI PANOU ADMIN ---
         document.getElementById('currentYear').textContent = new Date().getFullYear();
         document.getElementById('mobileMenuBtn').addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
+        // navigate() closes the menu on hashchange, but that event never fires when
+        // the tapped link points at the hash we're already on (e.g. opening the menu
+        // while already viewing Contact, then tapping Contact again) - close it here
+        // unconditionally so it never gets stuck open.
+        navLinks.forEach(link => link.addEventListener('click', () => mobileMenu.classList.add('hidden')));
 
         // --- 2.1 HERO: EFECT TYPING + GLITCH PE "YO8AIU" ---
         function playHeroIntro() {
@@ -1003,6 +1175,7 @@
         resizeCanvas();
         seedNoise();
 
+        let canvasRafPending = false;
         function animateCanvas(ts) {
             // Paralaxa lina catre pozitia mouse-ului (raportata la centrul ecranului)
             const targetX = (mouseX - width / 2) * 0.03;
@@ -1014,9 +1187,19 @@
             drawNoise(ts || 0);
             drawOcean(ts || 0);
             drawCallsignWatermark(ts || 0);
+
+            // Nu are rost sa desenam un tab invizibil - economisim CPU/baterie.
+            if (document.hidden) { canvasRafPending = false; return; }
             requestAnimationFrame(animateCanvas);
         }
         animateCanvas();
+
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && !canvasRafPending) {
+                canvasRafPending = true;
+                requestAnimationFrame(animateCanvas);
+            }
+        });
 
 
         // --- 3.1 UMPLERE PROGRESIVA TIMELINE (Intersection Observer) ---
@@ -1066,14 +1249,15 @@
         function initChart() {
             const ctxChart = document.getElementById('contactsChart').getContext('2d');
             const isDark = document.documentElement.classList.contains('dark');
-            if(chartInstance) chartInstance.destroy(); 
+            const continents = (globalAboutData && globalAboutData.continents) || DEFAULT_CONTINENT_DATA;
+            if(chartInstance) chartInstance.destroy();
             chartInstance = new Chart(ctxChart, {
                 type: 'bar',
                 data: {
                     labels: ['Europa', 'Asia', 'Am. Nord', 'Am. Sud', 'Africa', 'Oceania'],
-                    labels: ['Europa', 'Asia', 'Am. Nord', 'Am. Sud', 'Africa', 'Oceania'],
                     datasets: [{
-                        label: 'Contacte (%)', data: [65, 15, 10, 5, 3, 2],
+                        label: 'Contacte (%)',
+                        data: [continents.europa, continents.asia, continents.americaNord, continents.americaSud, continents.africa, continents.oceania],
                         backgroundColor: 'rgba(56, 189, 248, 0.7)', borderColor: 'rgba(56, 189, 248, 1)', borderWidth: 1, borderRadius: 6
                     }]
                 },
@@ -1091,9 +1275,8 @@
         // 🔒 SISTEM ADMIN
         // =========================================================================
         const emailuriPermise = [
-            'marius@yo8aiu.ro', 
-            'cuibarimarius6@gmail.com',
-            'stef.popina.andrei@gmail.com'
+            // lista reala de administratori e doar pe server (nu se publica)
+            'admin@example.com'
         ];
 
         let db, auth, storage;
@@ -1173,7 +1356,8 @@ btn.textContent = originalText;
             }
         }
 
-        function initQuill() {
+        async function initQuill() {
+            await loadAdminLibs();
             if(!quillEditor) {
                 const BlotFormatter = QuillBlotFormatter.default || QuillBlotFormatter;
                 Quill.register('modules/blotFormatter', BlotFormatter);
@@ -1210,6 +1394,93 @@ btn.textContent = originalText;
         // 📝 SECȚIUNEA "DESPRE MINE" (document unic editabil, ca la Meshtastic/Proiecte,
         // dar fara lista de carduri - un singur continut, stocat in about/main)
         // =========================================================================
+        // =========================================================================
+        // 📬 CERERI DE CONTACT (vizibile doar pentru admin - protejate si prin regula Firestore)
+        // =========================================================================
+        function formatContactDate(millis) {
+            try {
+                return new Date(millis).toLocaleString('ro-RO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            } catch { return ''; }
+        }
+
+        // Escapes for both text content AND attribute values (href="...") - the
+        // contact form is public, so this data is attacker-controlled until it's
+        // rendered here in the admin's own browser.
+        function escapeHtml(str) {
+            return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        function renderContactRequests(list) {
+            const listEl = document.getElementById('contactRequestsList');
+            const emptyEl = document.getElementById('contactRequestsEmpty');
+            const badgeEl = document.getElementById('contactUnreadBadge');
+
+            const unreadCount = list.filter(m => !m.data.read).length;
+            if (unreadCount > 0) {
+                badgeEl.textContent = unreadCount;
+                badgeEl.classList.remove('hidden');
+            } else {
+                badgeEl.classList.add('hidden');
+            }
+
+            if (list.length === 0) {
+                listEl.innerHTML = '';
+                emptyEl.classList.remove('hidden');
+                return;
+            }
+            emptyEl.classList.add('hidden');
+
+            listEl.innerHTML = list.map(m => `
+                <div class="glass-panel p-5 rounded-xl border ${m.data.read ? 'border-slate-200 dark:border-white/10' : 'border-amber-500/50'} shadow-sm">
+                    <div class="flex items-start justify-between gap-4 mb-2">
+                        <div>
+                            <span class="font-bold text-slate-900 dark:text-white">${escapeHtml(m.data.name || 'Anonim')}</span>
+                            <span class="text-xs text-slate-400 dark:text-gray-500 ml-2">${formatContactDate(m.data.createdAt)}</span>
+                            ${!m.data.read ? '<span class="ml-2 text-xs font-bold text-amber-600 dark:text-amber-400">● nou</span>' : ''}
+                        </div>
+                        <div class="flex gap-2 shrink-0">
+                            ${!m.data.read ? `<button onclick="marcheazaContactCitit('${m.id}')" class="text-xs bg-sky-100 dark:bg-sky-900/50 text-sky-700 dark:text-sky-300 px-2 py-1 rounded-md hover:bg-sky-200 dark:hover:bg-sky-900 transition-colors">Marchează citit</button>` : ''}
+                            <button onclick="stergeContactRequest('${m.id}')" class="text-xs bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 px-2 py-1 rounded-md hover:bg-red-200 dark:hover:bg-red-900 transition-colors">Șterge</button>
+                        </div>
+                    </div>
+                    ${(m.data.email || m.data.phone) ? `
+                    <div class="flex flex-wrap gap-x-4 gap-y-1 mb-2 text-xs text-slate-500 dark:text-gray-400">
+                        ${m.data.email ? `<span>✉️ <a href="mailto:${escapeHtml(m.data.email)}" class="hover:text-amber-500 underline">${escapeHtml(m.data.email)}</a></span>` : ''}
+                        ${m.data.phone ? `<span>📞 <a href="tel:${escapeHtml(m.data.phone)}" class="hover:text-amber-500 underline">${escapeHtml(m.data.phone)}</a></span>` : ''}
+                    </div>` : ''}
+                    <p class="text-sm text-slate-600 dark:text-gray-300 whitespace-pre-wrap">${escapeHtml(m.data.message || '')}</p>
+                </div>
+            `).join('');
+        }
+
+        window.marcheazaContactCitit = async function(id) {
+            try { await window.updateDoc(window.doc(db, 'contactMessages', id), { read: true }); }
+            catch (err) { alert('Eroare: ' + err.message); }
+        };
+
+        window.stergeContactRequest = async function(id) {
+            if (!confirm('Ștergi acest mesaj de contact?')) return;
+            try { await window.deleteDoc(window.doc(db, 'contactMessages', id)); }
+            catch (err) { alert('Eroare: ' + err.message); }
+        };
+
+        function startContactRequestsListener() {
+            if (contactUnsub) return; // deja pornit
+            contactUnsub = window.onSnapshot(
+                window.query(window.collection(db, 'contactMessages'), window.orderBy('createdAt', 'desc')),
+                (snapshot) => {
+                    const list = snapshot.docs.map(d => ({ id: d.id, data: { ...d.data(), createdAt: d.data().createdAt?.toMillis() || Date.now() } }));
+                    renderContactRequests(list);
+                },
+                (err) => console.error('Eroare la citirea cererilor de contact:', err)
+            );
+        }
+
+        function stopContactRequestsListener() {
+            if (contactUnsub) { contactUnsub(); contactUnsub = null; }
+            document.getElementById('contactRequestsList').innerHTML = '';
+        }
+
         function renderAbout(docData) {
             globalAboutData = docData;
             const skeletonEl = document.getElementById('aboutSkeleton');
@@ -1227,9 +1498,14 @@ btn.textContent = originalText;
             observeReveal(contentEl);
 
             if (editBtn) editBtn.classList.toggle('hidden', !isAdmin);
+
+            // Daca graficul de continente e deja initializat (userul e pe pagina "Despre"),
+            // il reincarcam cu valorile noi imediat, fara sa astepte un refresh de pagina.
+            if (chartInstance) initChart();
         }
 
-        function initAboutQuill() {
+        async function initAboutQuill() {
+            await loadAdminLibs();
             if (!aboutQuillEditor) {
                 const BlotFormatter = QuillBlotFormatter.default || QuillBlotFormatter;
                 Quill.register('modules/blotFormatter', BlotFormatter);
@@ -1260,14 +1536,22 @@ btn.textContent = originalText;
             }
         }
 
-        window.editeazaAbout = function(event) {
+        window.editeazaAbout = async function(event) {
             if (event) { event.preventDefault(); event.stopPropagation(); }
             if (!isAdmin) return;
 
-            initAboutQuill();
+            await initAboutQuill();
             aboutQuillEditor.root.innerHTML = (globalAboutData && globalAboutData.content)
                 ? globalAboutData.content
                 : document.getElementById('aboutContent').innerHTML;
+
+            const continents = (globalAboutData && globalAboutData.continents) || DEFAULT_CONTINENT_DATA;
+            document.getElementById('continentEuropa').value = continents.europa;
+            document.getElementById('continentAsia').value = continents.asia;
+            document.getElementById('continentAmNord').value = continents.americaNord;
+            document.getElementById('continentAmSud').value = continents.americaSud;
+            document.getElementById('continentAfrica').value = continents.africa;
+            document.getElementById('continentOceania').value = continents.oceania;
 
             document.getElementById('aboutEditModal').classList.remove('hidden');
         };
@@ -1293,7 +1577,7 @@ btn.textContent = originalText;
             document.getElementById('cancelEditBtn').classList.add('hidden');
         }
 
-        window.editeazaPostare = function(id, collectionType, event) {
+        window.editeazaPostare = async function(id, collectionType, event) {
             if(event) { event.preventDefault(); event.stopPropagation(); }
             if(!isAdmin) return;
 
@@ -1321,7 +1605,7 @@ btn.textContent = originalText;
 
             editingCollection = collectionType;
             editingPostId = id;
-            initQuill();
+            await initQuill();
 
             document.getElementById('postTitle').value = postToEdit.data.title;
             quillEditor.root.innerHTML = postToEdit.data.content;
@@ -1353,6 +1637,9 @@ btn.textContent = originalText;
                     if(sortableProjects) sortableProjects.destroy();
                     if(sortableMeshtastic) sortableMeshtastic.destroy();
 
+                    document.getElementById('contactRequestsPanel').classList.add('hidden');
+                    stopContactRequestsListener();
+
                     renderGridCollection(globalPostsData, 'posts', 'galleryGrid', 'loadingGallery');
                     renderGridCollection(globalProjectsData, 'projects', 'projectsGrid', 'loadingProjects');
                     renderGridCollection(globalMeshtasticData, 'meshtastic', 'meshtasticGrid', 'loadingMeshtastic');
@@ -1361,6 +1648,7 @@ btn.textContent = originalText;
                 }
             } else {
                 adminModal.classList.remove('hidden');
+                loadAdminLibs(); // pornim descarcarea in fundal cat timp userul se logheaza cu Google
             }
         }
 
@@ -1368,23 +1656,26 @@ btn.textContent = originalText;
         adminLoginBtnMobile.addEventListener('click', () => { handleAdminMenuClick(); mobileMenu.classList.add('hidden'); });
         document.getElementById('closeModalBtn').addEventListener('click', () => adminModal.classList.add('hidden'));
 
-        function loginSuccess() {
+        async function loginSuccess() {
             isAdmin = true;
             adminModal.classList.add('hidden');
             document.getElementById('adminPanel').classList.remove('hidden');
-            
+
             adminLoginBtnDesktop.textContent = '🚪';
             adminLoginBtnDesktop.classList.add('text-red-500', 'dark:text-red-400');
             adminLoginBtnMobile.textContent = '🚪 Delogare Admin';
             adminLoginBtnMobile.classList.remove('text-sky-600', 'dark:text-sky-400');
             adminLoginBtnMobile.classList.add('text-red-500', 'dark:text-red-400');
 
-            initQuill(); 
+            await initQuill(); // asteapta si incarcarea Sortable.js (ambele pornite din loadAdminLibs)
             renderGridCollection(globalPostsData, 'posts', 'galleryGrid', 'loadingGallery');
             renderGridCollection(globalProjectsData, 'projects', 'projectsGrid', 'loadingProjects');
             renderGridCollection(globalMeshtasticData, 'meshtastic', 'meshtasticGrid', 'loadingMeshtastic');
             renderHistory(globalHistoryData);
             renderAbout(globalAboutData);
+
+            document.getElementById('contactRequestsPanel').classList.remove('hidden');
+            startContactRequestsListener();
         }
 
         googleLoginBtn.addEventListener('click', async () => {
@@ -1395,7 +1686,7 @@ btn.textContent = originalText;
                 const emailLogat = result.user.email;
 
                 if (emailuriPermise.includes(emailLogat)) {
-                    loginSuccess();
+                    await loginSuccess();
                 } else {
                     await window.signOut(auth);
                     await window.signInAnonymously(auth); 
@@ -1543,12 +1834,12 @@ btn.textContent = originalText;
             const generateHtmlFromUrl = (url) => {
                 const ytMatch = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);
                 if (ytMatch && ytMatch[2].length === 11) {
-                    return { html: `<div class="h-48 w-full bg-slate-200 dark:bg-slate-800 relative flex items-center justify-center overflow-hidden"><img src="https://img.youtube.com/vi/${ytMatch[2]}/mqdefault.jpg" class="w-full h-full object-cover opacity-80 transition-transform duration-500 group-hover:scale-105"><div class="absolute text-5xl text-white/90 drop-shadow-lg">▶</div></div>`, label: '📹 VIDEO' };
+                    return { html: `<div class="h-48 w-full bg-slate-200 dark:bg-slate-800 relative flex items-center justify-center overflow-hidden"><img src="https://img.youtube.com/vi/${ytMatch[2]}/mqdefault.jpg" loading="lazy" decoding="async" class="w-full h-full object-cover opacity-80 transition-transform duration-500 group-hover:scale-105"><div class="absolute text-5xl text-white/90 drop-shadow-lg">▶</div></div>`, label: '📹 VIDEO' };
                 } else if (url.toLowerCase().includes('.mp4') || url.toLowerCase().includes('.webm') || url.toLowerCase().includes('.mov')) {
                     // AM ACTIVAT AUTOPLAY MUTED DIRECT ÎN CARD
                     return { html: `<div class="h-48 w-full bg-black relative flex items-center justify-center overflow-hidden"><video src="${url}" class="w-full h-full object-cover opacity-90 transition-transform duration-500 group-hover:scale-105" autoplay muted loop playsinline></video><div class="absolute text-3xl text-white/80 drop-shadow-lg pointer-events-none">🎬</div></div>`, label: '🎥 VIDEO SCURT' };
                 } else {
-                    return { html: `<div class="h-48 w-full bg-slate-200 dark:bg-slate-800 overflow-hidden"><img src="${url}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.style.display='none'"></div>`, label: '📸 FOTO' };
+                    return { html: `<div class="h-48 w-full bg-slate-200 dark:bg-slate-800 overflow-hidden"><img src="${url}" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.style.display='none'"></div>`, label: '📸 FOTO' };
                 }
             };
 
@@ -1679,12 +1970,10 @@ btn.textContent = originalText;
         // =========================================================================
         // IMPORTANT: acest frontend NU contine si NU trebuie sa contina niciodata
         // o cheie API de la OpenAI/Gemini. Toate mesajele sunt trimise catre un
-        // Firebase Cloud Function ("cmcChat") care detine cheia in siguranta pe
-        // server si face apelul real catre AI. Vezi instructiunile + codul
-        // Cloud Function furnizate separat (index.js) pentru configurare completa.
-        const CMC_ENDPOINT = 'https://REGIUNE-PROIECTUL_TAU.cloudfunctions.net/cmcChat';
-        // Exemplu real (dupa deploy): 
-        // const CMC_ENDPOINT = 'https://europe-west1-yo8aiu-website.cloudfunctions.net/cmcChat';
+        // mic server Node/Express ("cmc-backend") care ruleaza pe acelasi
+        // container (port intern 3001), in spatele nginx, si detine cheia
+        // in siguranta ca variabila de mediu pe server. Vezi server.js.
+        const CMC_ENDPOINT = 'https://yo8aiu.ro/api/cmc';
 
         let cmcOpen = false;
         let cmcHistory = []; // { role: 'user' | 'assistant', content: string }
@@ -1903,9 +2192,17 @@ finalThumbnailUrl = data.url;
                     btn.textContent = 'Se salvează... 💾';
 
                     try {
+                        const continents = {
+                            europa: Number(document.getElementById('continentEuropa').value) || 0,
+                            asia: Number(document.getElementById('continentAsia').value) || 0,
+                            americaNord: Number(document.getElementById('continentAmNord').value) || 0,
+                            americaSud: Number(document.getElementById('continentAmSud').value) || 0,
+                            africa: Number(document.getElementById('continentAfrica').value) || 0,
+                            oceania: Number(document.getElementById('continentOceania').value) || 0
+                        };
                         await window.setDoc(
                             window.doc(db, 'about', 'main'),
-                            { content: aboutQuillEditor.root.innerHTML, updatedAt: window.serverTimestamp() },
+                            { content: aboutQuillEditor.root.innerHTML, continents, updatedAt: window.serverTimestamp() },
                             { merge: true }
                         );
                         document.getElementById('aboutEditModal').classList.add('hidden');
@@ -1916,7 +2213,47 @@ finalThumbnailUrl = data.url;
                         btn.textContent = originalText;
                     }
                 });
-                
+
+                // Formularul de Contact - orice vizitator poate trimite un mesaj,
+                // dar doar admin-ul (autentificat cu Google) il poate citi (vezi regula Firestore).
+                document.getElementById('contactForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    if (!db) return alert('Sistemul nu e gata încă. Mai încearcă în câteva secunde.');
+
+                    const btn = document.getElementById('contactSubmitBtn');
+                    const successMsg = document.getElementById('contactSuccessMsg');
+                    const nameInput = document.getElementById('contactName');
+                    const emailInput = document.getElementById('contactEmail');
+                    const phoneInput = document.getElementById('contactPhone');
+                    const msgInput = document.getElementById('contactMessageInput');
+
+                    const originalText = btn.textContent;
+                    btn.disabled = true;
+                    btn.textContent = 'Se trimite... ⏳';
+                    successMsg.classList.add('hidden');
+
+                    try {
+                        await window.addDoc(window.collection(db, 'contactMessages'), {
+                            name: nameInput.value.trim(),
+                            email: emailInput.value.trim(),
+                            phone: phoneInput.value.trim(),
+                            message: msgInput.value.trim(),
+                            read: false,
+                            createdAt: window.serverTimestamp()
+                        });
+                        nameInput.value = '';
+                        emailInput.value = '';
+                        phoneInput.value = '';
+                        msgInput.value = '';
+                        successMsg.classList.remove('hidden');
+                    } catch (err) {
+                        alert('Eroare la trimiterea mesajului: ' + err.message);
+                    } finally {
+                        btn.disabled = false;
+                        btn.textContent = originalText;
+                    }
+                });
+
                 await window.signInAnonymously(auth);
 
                 window.onAuthStateChanged(auth, (user) => {
